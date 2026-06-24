@@ -108,11 +108,13 @@ export default function EventForm({
     }
 
     onSave({
+      ...editingEvent,
       id: editingEvent?.id || `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       title: title.trim(),
       date,
       startTime: finalStartTime,
-      endTime: null,
+      // If we are editing, we should preserve the original endTime, otherwise keep it null for new events.
+      endTime: editingEvent ? editingEvent.endTime : null,
       description: description.trim() || null,
       location,
     });

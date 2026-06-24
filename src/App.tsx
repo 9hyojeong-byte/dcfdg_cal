@@ -104,7 +104,7 @@ export default function App() {
     setEditingEvent(null);
 
     // Sync to Sheets
-    await syncSchedulesWithGoogle(updatedEvents);
+    syncSchedulesWithGoogle(updatedEvents);
   };
 
   const handleDeleteEvent = async (id: string) => {
@@ -112,7 +112,7 @@ export default function App() {
     setEvents(updatedEvents);
 
     // Sync to Sheets
-    await syncSchedulesWithGoogle(updatedEvents);
+    syncSchedulesWithGoogle(updatedEvents);
   };
 
   const handleUpdateEvent = async (updatedEvent: ScheduleEvent) => {
@@ -121,7 +121,7 @@ export default function App() {
     if (selectedEventForDetail && selectedEventForDetail.id === updatedEvent.id) {
       setSelectedEventForDetail(updatedEvent);
     }
-    await syncSchedulesWithGoogle(updatedEvents);
+    syncSchedulesWithGoogle(updatedEvents);
   };
 
   // Handle importing AI-parsed schedules
@@ -150,7 +150,7 @@ export default function App() {
     }
 
     // Sync to Sheets
-    await syncSchedulesWithGoogle(updatedEvents);
+    syncSchedulesWithGoogle(updatedEvents);
 
     // Close the uploader modal
     setIsUploaderOpen(false);
@@ -313,7 +313,7 @@ export default function App() {
         )}
 
         {/* DB Sync Loading Overlay with Bouncy Sea/Swim Emojis */}
-        {syncStatus === 'syncing' && (
+        {isLoading && syncStatus === 'syncing' && (
           <div className="fixed inset-0 bg-black/60 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-200">
             <div className="relative flex flex-col items-center justify-center bg-white/95 p-8 rounded-[32px] shadow-2xl border border-white/20 max-w-xs text-center overflow-hidden animate-in zoom-in-95 duration-200">
               {/* Spinning/Bouncing ocean themed illustration */}

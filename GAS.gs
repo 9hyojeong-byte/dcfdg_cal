@@ -25,7 +25,6 @@
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('📅 AI 플래너 매니저')
-    .addItem('데이터 포맷 정돈하기', 'formatSheet')
     .addItem('만료된 과거 일정 자동 정리', 'cleanupPastEvents')
     .addToUi();
   
@@ -42,45 +41,14 @@ function initializeSheet() {
   // 첫 번째 행이 비어있으면 헤더 작성
   if (sheet.getLastRow() === 0) {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    formatSheet();
   }
 }
 
 /**
- * 2. 시트 및 날짜 가독성 포맷 정돈
+ * 2. 시트 및 날짜 가독성 포맷 정돈 (비활성화됨)
  */
 function formatSheet() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  if (sheet.getLastRow() < 1) return;
-  
-  // 전체 시트 스타일 정의
-  const totalColumns = 9;
-  const range = sheet.getRange(1, 1, sheet.getLastRow(), totalColumns);
-  
-  // 헤더 스타일 (1행)
-  const headerRange = sheet.getRange(1, 1, 1, totalColumns);
-  headerRange.setBackground('#2563EB') // Bento Blue Accent
-             .setFontColor('#FFFFFF')
-             .setFontWeight('bold')
-             .setHorizontalAlignment('center');
-             
-  // 데이터 행 스타일
-  if (sheet.getLastRow() > 1) {
-    const dataRange = sheet.getRange(2, 1, sheet.getLastRow() - 1, totalColumns);
-    dataRange.setFontFamily('Arial')
-             .setVerticalAlignment('middle');
-             
-    // ID, 날짜, 시간 열 가운데 정렬
-    sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).setHorizontalAlignment('center'); // ID
-    sheet.getRange(2, 3, sheet.getLastRow() - 1, 3).setHorizontalAlignment('center'); // Date, StartTime, EndTime
-  }
-  
-  // 열 너비 자동 맞춤 및 기본 여유 공간 부여
-  for (let col = 1; col <= totalColumns; col++) {
-    sheet.autoResizeColumn(col);
-    const currentWidth = sheet.getColumnWidth(col);
-    sheet.setColumnWidth(col, Math.max(currentWidth + 20, 100));
-  }
+  // 사용자의 스프레드시트 수동 스타일링 보존을 위해 포맷팅 로직 비활성화
 }
 
 /**
@@ -118,7 +86,6 @@ function cleanupPastEvents() {
     if (remainingRows.length > 0) {
       sheet.getRange(2, 1, remainingRows.length, 9).setValues(remainingRows);
     }
-    formatSheet();
     SpreadsheetApp.getUi().alert('성공적으로 ' + deletedCount + '개의 지난 일정을 정리했습니다.');
   } else {
     SpreadsheetApp.getUi().alert('정리할 만료된 일정이 없습니다.');
@@ -208,8 +175,6 @@ function doPost(e) {
         sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
       }
       
-      formatSheet();
-      
       return ContentService.createTextOutput(JSON.stringify({ success: true, message: '모든 일정이 동기화되었습니다.' }))
                            .setMimeType(ContentService.MimeType.JSON);
     }
@@ -226,7 +191,6 @@ function doPost(e) {
     const createdAt = postData.createdAt || new Date().toISOString();
     
     sheet.appendRow([id, title, date, startTime, endTime, description, createdAt, location, attendees]);
-    formatSheet();
     
     return ContentService.createTextOutput(JSON.stringify({ success: true, message: '일정이 추가되었습니다.' }))
                          .setMimeType(ContentService.MimeType.JSON);
