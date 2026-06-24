@@ -83,7 +83,9 @@ export default function App() {
   };
 
   const handleDeleteEvent = async (id: string) => {
-    const updatedEvents = events.filter(e => e.id !== id);
+    const updatedEvents = events.map(e =>
+      e.id === id ? { ...e, attendees: '삭제됨' } : e
+    );
     setEvents(updatedEvents);
     syncSchedulesWithGoogle(updatedEvents);
   };
@@ -173,7 +175,7 @@ export default function App() {
           <CalendarView
             currentDate={currentCalendarDate}
             selectedDate={selectedDate}
-            events={events}
+            events={events.filter(e => e.attendees !== '삭제됨')}
             onSelectDate={setSelectedDate}
             onNavigateMonth={handleNavigateMonth}
             onTodayClick={() => {
@@ -187,7 +189,7 @@ export default function App() {
 
           <EventListView
             selectedDate={selectedDate}
-            events={events}
+            events={events.filter(e => e.attendees !== '삭제됨')}
             onEditEvent={(ev) => { setEditingEvent(ev); setIsFormOpen(true); }}
             onDeleteEvent={handleDeleteEvent}
             onAddEventClick={() => { setEditingEvent(null); setIsFormOpen(true); }}
