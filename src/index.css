@@ -1,25 +1,93 @@
 @import "tailwindcss";
 
+/* ── Base ── */
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background-color: #FFFDF5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+/* ── Hard "Pop" Shadows ── */
+.shadow-pop     { box-shadow: 4px 4px 0px 0px #1E293B; }
+.shadow-pop-sm  { box-shadow: 3px 3px 0px 0px #1E293B; }
+.shadow-pop-lg  { box-shadow: 8px 8px 0px 0px #1E293B; }
+.shadow-pop-xl  { box-shadow: 12px 12px 0px 0px #1E293B; }
+.shadow-pop-violet  { box-shadow: 4px 4px 0px 0px #8B5CF6; }
+.shadow-pop-pink    { box-shadow: 4px 4px 0px 0px #F472B6; }
+.shadow-pop-amber   { box-shadow: 4px 4px 0px 0px #FBBF24; }
+.shadow-pop-emerald { box-shadow: 4px 4px 0px 0px #34D399; }
+.shadow-pop-sky     { box-shadow: 4px 4px 0px 0px #38BDF8; }
+
+/* ── Dot-grid background ── */
+.dot-grid {
+  background-image: radial-gradient(circle, #C7D2DC 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+
+/* ── Candy button transitions ── */
+.btn-candy {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.2s ease;
+}
+.btn-candy:hover  { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px 0px #1E293B; }
+.btn-candy:active { transform: translate(2px, 2px);   box-shadow: 2px 2px 0px 0px #1E293B; }
+
+.btn-candy-light {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.btn-candy-light:hover  { transform: translate(-2px, -2px); }
+.btn-candy-light:active { transform: translate(2px, 2px);   }
+
+/* ── Input focus hard shadow ── */
+.input-geo:focus {
+  outline: none;
+  border-color: #8B5CF6;
+  box-shadow: 4px 4px 0px 0px #8B5CF6;
+}
+
+/* ── Animations ── */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25%       { transform: rotate(-4deg); }
+  75%       { transform: rotate(4deg); }
+}
+@keyframes pop-in {
+  0%   { transform: scale(0.78) translateY(10px); opacity: 0; }
+  60%  { transform: scale(1.04) translateY(-2px); opacity: 1; }
+  100% { transform: scale(1)    translateY(0);    opacity: 1; }
+}
+@keyframes slide-up {
+  0%   { transform: translateY(24px); opacity: 0; }
+  100% { transform: translateY(0);    opacity: 1; }
+}
 @keyframes ocean-bounce {
-  0%, 100% {
-    transform: translateY(0) scale(1);
+  0%, 100% { transform: translateY(0)     scale(1);    }
+  50%       { transform: translateY(-20px) scale(1.15); }
+}
+
+.animate-pop-in   { animation: pop-in   0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-slide-up { animation: slide-up 0.3s  cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-wiggle   { animation: wiggle   0.45s ease-in-out; }
+
+.animate-ocean-bounce-1 { animation: ocean-bounce 0.8s infinite ease-in-out; }
+.animate-ocean-bounce-2 { animation: ocean-bounce 0.8s infinite ease-in-out; animation-delay: 0.15s; }
+.animate-ocean-bounce-3 { animation: ocean-bounce 0.8s infinite ease-in-out; animation-delay: 0.3s; }
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop-in, .animate-slide-up, .animate-wiggle,
+  .event-card:hover {
+    animation: none;
+    transform: none;
+    opacity: 1;
   }
-  50% {
-    transform: translateY(-20px) scale(1.15);
+  .btn-candy:hover, .btn-candy:active,
+  .btn-candy-light:hover, .btn-candy-light:active {
+    transform: none;
   }
 }
-
-.animate-ocean-bounce-1 {
-  animation: ocean-bounce 0.8s infinite ease-in-out;
-}
-
-.animate-ocean-bounce-2 {
-  animation: ocean-bounce 0.8s infinite ease-in-out;
-  animation-delay: 0.15s;
-}
-
-.animate-ocean-bounce-3 {
-  animation: ocean-bounce 0.8s infinite ease-in-out;
-  animation-delay: 0.3s;
-}
-
