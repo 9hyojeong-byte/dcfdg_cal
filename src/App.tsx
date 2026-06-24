@@ -144,12 +144,6 @@ export default function App() {
           <div className="flex justify-between items-center">
             {/* Title block */}
             <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#8B5CF6] border border-[#1E293B]" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#8B5CF6]">
-                  일정등록은 톡방에서 해주쇼
-                </span>
-              </div>
               <h1 className="font-display text-[26px] font-extrabold tracking-tight text-[#1E293B] leading-none">
                 프다갤 벙 일정
               </h1>

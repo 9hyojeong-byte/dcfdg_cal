@@ -142,10 +142,12 @@ export default function EventListView({
                       </p>
                     )}
                     {ev.attendees && (
-                      <div className="mt-1.5 flex items-center gap-1">
-                        <span className="text-[9px] font-extrabold px-2 py-0.5 bg-[#1E293B] text-white rounded-full">
-                          {ev.attendees.split(',').filter(Boolean).length}명 참석
-                        </span>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {ev.attendees.split(',').map(n => n.trim()).filter(Boolean).map(name => (
+                          <span key={name} className="text-[9px] font-extrabold px-2 py-0.5 bg-[#1E293B] text-white rounded-full">
+                            {name}
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>
