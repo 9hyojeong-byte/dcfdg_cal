@@ -142,22 +142,32 @@ export default function App() {
       <div className="w-full max-w-[448px] bg-[#FFFDF5] sm:rounded-3xl flex flex-col min-h-screen sm:min-h-[860px] overflow-hidden relative sm:border-2 sm:border-[#1E293B] sm:shadow-pop-xl">
 
         {/* ── Header ── */}
-        <header className="px-5 pt-6 pb-4 shrink-0">
-          <div className="flex justify-between items-center">
+        <header className="relative px-5 pt-6 pb-5 shrink-0 overflow-hidden">
+          {/* Background accent strip */}
+          <div className="absolute inset-0 bg-[#8B5CF6]" />
+          {/* Decorative circles */}
+          <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-[#7C3AED] opacity-60" />
+          <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-[#A78BFA] opacity-40" />
+          <div className="absolute top-2 right-20 w-8 h-8 rounded-full bg-[#FBBF24] border-2 border-[#1E293B] opacity-80" />
+
+          <div className="relative flex justify-between items-center">
             {/* Title block */}
-            <div className="flex flex-col gap-0.5">
-              <h1 className="font-display text-[26px] font-extrabold tracking-tight text-[#1E293B] leading-none">
-                프다갤 벙 일정
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-violet-200">
+                갤훈 : 발사대 학대금지
+              </span>
+              <h1 className="font-display text-[28px] font-extrabold tracking-tight text-white leading-none drop-shadow-sm">
+                프다갤 <span className="text-[#FBBF24]">벙</span> 일정
               </h1>
             </div>
 
             {/* Sync badge */}
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-[#1E293B] shadow-pop-sm text-[10px] font-bold uppercase tracking-wide
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white/40 text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm
               ${syncStatus === 'error'
-                ? 'bg-red-400 text-white'
+                ? 'bg-red-500/80 text-white'
                 : syncStatus === 'syncing'
-                  ? 'bg-[#FBBF24] text-[#1E293B]'
-                  : 'bg-[#34D399] text-[#1E293B]'}`}>
+                  ? 'bg-[#FBBF24]/90 text-[#1E293B]'
+                  : 'bg-white/20 text-white'}`}>
               {syncStatus === 'error'
                 ? <ShieldAlert className="w-3 h-3" strokeWidth={2.5} />
                 : syncStatus === 'syncing'
