@@ -1,1 +1,25 @@
 @import "tailwindcss";
+
+@keyframes ocean-bounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-20px) scale(1.15);
+  }
+}
+
+.animate-ocean-bounce-1 {
+  animation: ocean-bounce 0.8s infinite ease-in-out;
+}
+
+.animate-ocean-bounce-2 {
+  animation: ocean-bounce 0.8s infinite ease-in-out;
+  animation-delay: 0.15s;
+}
+
+.animate-ocean-bounce-3 {
+  animation: ocean-bounce 0.8s infinite ease-in-out;
+  animation-delay: 0.3s;
+}
+

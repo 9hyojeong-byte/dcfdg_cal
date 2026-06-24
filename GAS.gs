@@ -37,7 +37,7 @@ function onOpen() {
  */
 function initializeSheet() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const headers = ['ID', 'Title', 'Date', 'StartTime', 'EndTime', 'Description', 'CreatedAt'];
+  const headers = ['ID', 'Title', 'Date', 'StartTime', 'EndTime', 'Description', 'CreatedAt', 'Location', 'Attendees'];
   
   // 첫 번째 행이 비어있으면 헤더 작성
   if (sheet.getLastRow() === 0) {
@@ -54,7 +54,7 @@ function formatSheet() {
   if (sheet.getLastRow() < 1) return;
   
   // 전체 시트 스타일 정의
-  const totalColumns = 7;
+  const totalColumns = 9;
   const range = sheet.getRange(1, 1, sheet.getLastRow(), totalColumns);
   
   // 헤더 스타일 (1행)
@@ -97,7 +97,7 @@ function cleanupPastEvents() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const data = sheet.getRange(2, 1, lastRow - 1, 7).getValues();
+  const data = sheet.getRange(2, 1, lastRow - 1, 9).getValues();
   const remainingRows = [];
   let deletedCount = 0;
   
@@ -114,9 +114,9 @@ function cleanupPastEvents() {
   
   if (deletedCount > 0) {
     // 시트 비우고 새 데이터 덮어쓰기
-    sheet.getRange(2, 1, lastRow - 1, 7).clearContent();
+    sheet.getRange(2, 1, lastRow - 1, 9).clearContent();
     if (remainingRows.length > 0) {
-      sheet.getRange(2, 1, remainingRows.length, 7).setValues(remainingRows);
+      sheet.getRange(2, 1, remainingRows.length, 9).setValues(remainingRows);
     }
     formatSheet();
     SpreadsheetApp.getUi().alert('성공적으로 ' + deletedCount + '개의 지난 일정을 정리했습니다.');
@@ -143,7 +143,7 @@ function doGet(e) {
                            .setMimeType(ContentService.MimeType.JSON);
     }
     
-    const data = sheet.getRange(2, 1, lastRow - 1, 7).getValues();
+    const data = sheet.getRange(2, 1, lastRow - 1, 9).getValues();
     const targetDate = e && e.parameter ? e.parameter.date : null; // YYYY-MM-DD 필터링 지원
     
     const events = [];
@@ -162,7 +162,9 @@ function doGet(e) {
         startTime: row[3] || null,
         endTime: row[4] || null,
         description: row[5] || null,
-        createdAt: row[6]
+        createdAt: row[6],
+        location: row[7] || null,
+        attendees: row[8] || null
       });
     }
     
@@ -183,7 +185,7 @@ function doPost(e) {
     
     // 1. 만약 action이 "sync" 이고 events 배열이 들어오는 경우 시트를 통째로 동기화
     if (postData.action === 'sync' && Array.isArray(postData.events)) {
-      const headers = ['ID', 'Title', 'Date', 'StartTime', 'EndTime', 'Description', 'CreatedAt'];
+      const headers = ['ID', 'Title', 'Date', 'StartTime', 'EndTime', 'Description', 'CreatedAt', 'Location', 'Attendees'];
       
       // 기존 전체 데이터 클리어 후 새로 쓰기
       sheet.clearContents();
@@ -198,7 +200,9 @@ function doPost(e) {
             ev.startTime || '',
             ev.endTime || '',
             ev.description || '',
-            ev.createdAt || new Date().toISOString()
+            ev.createdAt || new Date().toISOString(),
+            ev.location || '',
+            ev.attendees || ''
           ];
         });
         sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
@@ -217,9 +221,11 @@ function doPost(e) {
     const startTime = postData.startTime || '';
     const endTime = postData.endTime || '';
     const description = postData.description || '';
+    const location = postData.location || '';
+    const attendees = postData.attendees || '';
     const createdAt = postData.createdAt || new Date().toISOString();
     
-    sheet.appendRow([id, title, date, startTime, endTime, description, createdAt]);
+    sheet.appendRow([id, title, date, startTime, endTime, description, createdAt, location, attendees]);
     formatSheet();
     
     return ContentService.createTextOutput(JSON.stringify({ success: true, message: '일정이 추가되었습니다.' }))

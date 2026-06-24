@@ -5,6 +5,7 @@ import CalendarView from './components/CalendarView';
 import EventListView from './components/EventListView';
 import EventForm from './components/EventForm';
 import ImageUploader from './components/ImageUploader';
+import EventDetailModal from './components/EventDetailModal';
 import { fetchSchedules, saveSchedules } from './lib/gasApi';
 
 export default function App() {
@@ -16,12 +17,23 @@ export default function App() {
   // UI States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<ScheduleEvent | null>(null);
+  const [selectedEventForDetail, setSelectedEventForDetail] = useState<ScheduleEvent | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [currentSyncEmoji, setCurrentSyncEmoji] = useState('🌊');
 
   // Today click count and modal state
   const [todayClickCount, setTodayClickCount] = useState(0);
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
+
+  // Update random sea emoji when syncStatus switches to 'syncing'
+  useEffect(() => {
+    if (syncStatus === 'syncing') {
+      const seaEmojis = ['🌊', '🏊', '🐬', '🐳', '🐋', '🦈', '🐙', '🦑', '🐠', '🐡', '🦀', '🦞', '🦐', '🐚', '🐧', '⛵', '🏄', '🚣', '🦦', '🧜', '🦭'];
+      const randomEmoji = seaEmojis[Math.floor(Math.random() * seaEmojis.length)];
+      setCurrentSyncEmoji(randomEmoji);
+    }
+  }, [syncStatus]);
 
   // Set today as default selected date on mount
   useEffect(() => {
@@ -100,6 +112,15 @@ export default function App() {
     setEvents(updatedEvents);
 
     // Sync to Sheets
+    await syncSchedulesWithGoogle(updatedEvents);
+  };
+
+  const handleUpdateEvent = async (updatedEvent: ScheduleEvent) => {
+    const updatedEvents = events.map(e => e.id === updatedEvent.id ? updatedEvent : e);
+    setEvents(updatedEvents);
+    if (selectedEventForDetail && selectedEventForDetail.id === updatedEvent.id) {
+      setSelectedEventForDetail(updatedEvent);
+    }
     await syncSchedulesWithGoogle(updatedEvents);
   };
 
@@ -215,12 +236,13 @@ export default function App() {
               setEditingEvent(null);
               setIsFormOpen(true);
             }}
+            onEventClick={setSelectedEventForDetail}
           />
 
         </main>
 
         {/* Floating Add Button in modern black bento layout */}
-        <div className="hidden absolute bottom-6 right-6 z-40">
+        <div className="absolute bottom-6 right-6 z-40">
           <button
             id="floating-add-btn"
             onClick={() => {
@@ -244,6 +266,15 @@ export default function App() {
               setIsFormOpen(false);
               setEditingEvent(null);
             }}
+          />
+        )}
+
+        {/* Event Detail & Attendance Management Modal */}
+        {selectedEventForDetail && (
+          <EventDetailModal
+            event={selectedEventForDetail}
+            onClose={() => setSelectedEventForDetail(null)}
+            onUpdateEvent={handleUpdateEvent}
           />
         )}
 
@@ -277,6 +308,45 @@ export default function App() {
                   setIsLoading={setIsLoading}
                 />
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* DB Sync Loading Overlay with Bouncy Sea/Swim Emojis */}
+        {syncStatus === 'syncing' && (
+          <div className="fixed inset-0 bg-black/60 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-200">
+            <div className="relative flex flex-col items-center justify-center bg-white/95 p-8 rounded-[32px] shadow-2xl border border-white/20 max-w-xs text-center overflow-hidden animate-in zoom-in-95 duration-200">
+              {/* Spinning/Bouncing ocean themed illustration */}
+              <div className="relative w-28 h-28 flex items-center justify-center mb-5">
+                {/* Outer spinning ring spinner */}
+                <div className="absolute inset-0 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+                
+                {/* Inner decorative circle */}
+                <div className="absolute inset-2 bg-blue-50/70 rounded-full border border-blue-100/50 flex items-center justify-center">
+                  {/* Water splash container shadow */}
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-blue-200/50 blur-xs rounded-full"></div>
+                </div>
+                
+                {/* Floating/bouncing emoji inside the spinner */}
+                <div className="relative flex items-center justify-center z-10">
+                  {/* Bouncing randomized sea emoji */}
+                  <span className="text-3xl animate-ocean-bounce-1 inline-block select-none">
+                    {currentSyncEmoji}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Text indicators */}
+              <h3 className="text-sm font-black text-blue-900 tracking-tight flex items-center gap-1.5 justify-center">
+                <span>실시간 데이터 동기화 중</span>
+              </h3>
+              <p className="text-[10px] text-blue-500/80 font-extrabold mt-1 leading-normal">
+                캘린더 일정을 서버에 동기화하고 있습니다.<br/>잠시만 기다려주세요!
+              </p>
+
+              {/* Playful mini floating bubbles inside the card edges */}
+              <div className="absolute -top-1 -left-1 text-xl animate-pulse delay-75">🫧</div>
+              <div className="absolute -bottom-1 -right-1 text-2xl animate-pulse delay-300">🫧</div>
             </div>
           </div>
         )}

@@ -159,26 +159,28 @@ export default function CalendarView({
                 ${isSelected 
                   ? 'bg-blue-600 text-white shadow-lg ring-4 ring-blue-50 font-black' 
                   : isToday 
-                    ? 'bg-gray-50 border border-blue-200'
-                    : 'hover:bg-gray-50 active:bg-gray-100'
+                    ? `bg-amber-50 border-2 border-amber-400 ${hasEvents ? 'ring-2 ring-blue-100' : ''}`
+                    : hasEvents && isCurrentMonth
+                      ? 'bg-blue-50/70 border border-blue-100/70 hover:bg-blue-100/40'
+                      : 'hover:bg-gray-50 active:bg-gray-100'
                 }
               `}
             >
-              <span className={`text-sm ${isSelected ? 'text-white' : textColors}`}>
+              <span className={`text-sm ${isSelected ? 'text-white' : textColors} ${hasEvents && isCurrentMonth && !isSelected ? 'font-black text-blue-900' : ''}`}>
                 {dayNum}
               </span>
 
               {/* Event indicators with customized sizes */}
               {hasEvents && (
-                <div className="absolute bottom-1.5 flex gap-0.5 justify-center">
+                <div className="absolute bottom-1 flex gap-0.5 justify-center">
                   {dayEvents.slice(0, 3).map((ev, eIdx) => (
                     <span 
                       key={ev.id || eIdx} 
-                      className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-blue-500'}`} 
+                      className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-blue-600 shadow-xs'}`} 
                     />
                   ))}
                   {dayEvents.length > 3 && (
-                    <span className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white opacity-80' : 'bg-gray-400'}`} />
+                    <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white opacity-80' : 'bg-blue-400'}`} />
                   )}
                 </div>
               )}

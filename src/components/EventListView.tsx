@@ -1,6 +1,7 @@
-import React from 'react';
-import { Calendar, Clock, Edit2, Trash2, CalendarDays, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, Edit2, Trash2, CalendarDays, Plus, Settings, X } from 'lucide-react';
 import { ScheduleEvent } from '../types';
+import { formatTime } from '../lib/timeUtils';
 
 interface EventListViewProps {
   selectedDate: string; // YYYY-MM-DD
@@ -8,6 +9,7 @@ interface EventListViewProps {
   onEditEvent: (event: ScheduleEvent) => void;
   onDeleteEvent: (id: string) => void;
   onAddEventClick: () => void;
+  onEventClick: (event: ScheduleEvent) => void;
 }
 
 // Beautiful pastel-colored palette matching the Bento Grid HTML design
@@ -25,7 +27,24 @@ export default function EventListView({
   onEditEvent,
   onDeleteEvent,
   onAddEventClick,
+  onEventClick,
 }: EventListViewProps) {
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+  // Close active dropdown menu when clicking outside
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.settings-menu-container')) {
+        setActiveMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, []);
+
   // Filter events for the selected date and sort them chronologically
   const dayEvents = events
     .filter(e => e.date === selectedDate)
@@ -68,7 +87,7 @@ export default function EventListView({
         <button
           id="add-event-btn"
           onClick={onAddEventClick}
-          className="hidden text-xs font-bold text-blue-600 hover:text-blue-800 items-center gap-0.5"
+          className="flex text-xs font-bold text-blue-600 hover:text-blue-800 items-center gap-0.5"
         >
           <Plus className="w-4 h-4" />
           <span>일정 추가</span>
@@ -91,49 +110,104 @@ export default function EventListView({
             return (
               <div
                 key={ev.id}
-                className={`${color.bg} border ${color.border} rounded-[24px] p-4 flex items-start gap-3.5 shadow-xs hover:shadow-md transition-all duration-300`}
+                className={`${color.bg} border ${color.border} rounded-[24px] p-4 flex items-start justify-between gap-3 shadow-xs hover:shadow-md transition-all duration-300`}
               >
-                {/* Event Time indicator badge */}
-                <div className={`${color.badgeBg} ${color.badgeText} py-1.5 px-3 rounded-2xl text-center shrink-0 min-w-[76px]`}>
-                  <p className="text-[10px] font-bold uppercase tracking-wider leading-none">Time</p>
-                  <p className="text-xs font-black mt-1 leading-none tracking-tight">
-                    {ev.startTime ? ev.startTime : '하루종일'}
-                  </p>
-                  {ev.endTime && (
-                    <p className="text-[9px] opacity-85 mt-1 font-semibold leading-none">
-                      ~ {ev.endTime}
+                {/* Clickable Card Body Area for details modal */}
+                <div 
+                  onClick={() => onEventClick(ev)}
+                  className="flex-1 flex items-start gap-3.5 cursor-pointer min-w-0 group"
+                >
+                  {/* Event Location & Time indicator badge */}
+                  <div className={`${color.badgeBg} ${color.badgeText} py-1.5 px-3 rounded-2xl text-center shrink-0 min-w-[76px] flex flex-col justify-center items-center group-hover:scale-105 transition-transform`}>
+                    <p className="text-[11px] font-black tracking-tight leading-none truncate max-w-[70px]">
+                      {ev.location || '일반'}
                     </p>
-                  )}
+                    <p className="text-[11px] font-bold mt-1.5 leading-none tracking-tight">
+                      {ev.startTime ? formatTime(ev.startTime) : '하루종일'}
+                    </p>
+                    {ev.endTime && (
+                      <p className="text-[9px] opacity-85 mt-1 font-semibold leading-none">
+                        ~ {formatTime(ev.endTime)}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Event Content */}
+                  <div className="flex-1 min-w-0 self-center">
+                    <p className={`text-sm font-black ${color.text} leading-snug break-all group-hover:underline decoration-2 decoration-current/30`}>
+                      {ev.title}
+                    </p>
+                    {ev.description && (
+                      <p className={`text-[11px] ${color.descText} opacity-85 mt-1 leading-relaxed break-all whitespace-pre-line font-medium max-h-[44px] overflow-hidden text-ellipsis`}>
+                        {ev.description}
+                      </p>
+                    )}
+                    {ev.attendees && (
+                      <div className="mt-2 flex flex-wrap gap-1 items-center">
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-black/5 text-black/60 rounded-md">
+                          참석 {ev.attendees.split(',').filter(Boolean).length}명
+                        </span>
+                        <span className="text-[10px] text-gray-500 font-bold truncate">
+                          {ev.attendees}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Event Content */}
-                <div className="flex-1 min-w-0 self-center">
-                  <p className={`text-sm font-black ${color.text} leading-snug break-all`}>
-                    {ev.title}
-                  </p>
-                  {ev.description && (
-                    <p className={`text-[11px] ${color.descText} opacity-85 mt-1 leading-relaxed break-all whitespace-pre-line font-medium`}>
-                      {ev.description}
-                    </p>
+                {/* Settings Actions */}
+                <div className="settings-menu-container shrink-0 self-center">
+                  {activeMenuId === ev.id ? (
+                    <div className="flex items-center gap-1 bg-white/95 py-1 px-1.5 rounded-xl shadow-md border border-gray-100 animate-in fade-in slide-in-from-right-3 duration-200">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuId(null);
+                          onEditEvent(ev);
+                        }}
+                        className="p-1.5 text-xs font-black text-blue-600 hover:bg-blue-50 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                        title="수정"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span className="text-[10px] font-extrabold pr-0.5">수정</span>
+                      </button>
+                      <div className="w-[1px] h-3 bg-gray-200 self-center"></div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuId(null);
+                          handleDeleteClick(ev.id, ev.title);
+                        }}
+                        className="p-1.5 text-xs font-black text-red-600 hover:bg-red-50 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                        title="삭제"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="text-[10px] font-extrabold pr-0.5">삭제</span>
+                      </button>
+                      <div className="w-[1px] h-3 bg-gray-200 self-center"></div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuId(null);
+                        }}
+                        className="p-1.5 text-xs text-gray-400 hover:bg-gray-100 rounded-lg transition cursor-pointer"
+                        title="닫기"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveMenuId(ev.id);
+                      }}
+                      className="p-2 bg-white/75 hover:bg-white text-gray-500 hover:text-gray-800 rounded-xl transition shadow-xs cursor-pointer"
+                      title="설정"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                    </button>
                   )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1 shrink-0 self-center">
-                  <button
-                    onClick={() => onEditEvent(ev)}
-                    className="p-2 bg-white/75 hover:bg-white text-gray-500 hover:text-blue-600 rounded-xl transition shadow-xs"
-                    title="수정"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClick(ev.id, ev.title)}
-                    className="p-2 bg-white/75 hover:bg-red-50 text-gray-500 hover:text-red-500 rounded-xl transition shadow-xs"
-                    title="삭제"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
                 </div>
               </div>
             );
