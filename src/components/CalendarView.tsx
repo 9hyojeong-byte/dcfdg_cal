@@ -126,7 +126,7 @@ export default function CalendarView({
           return (
             <button
               key={`${dateStr}-${idx}`}
-              onClick={() => onSelectDate(dateStr)}
+              onClick={() => onSelectDate(isSelected ? '' : dateStr)}
               className={`relative aspect-square flex flex-col items-center justify-center rounded-xl transition-all duration-200 outline-none cursor-pointer
                 ${isSelected
                   ? 'bg-[#8B5CF6] border-2 border-[#1E293B] shadow-pop-sm'

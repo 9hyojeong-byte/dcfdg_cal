@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Sparkles, Plus, CheckCircle2, ShieldAlert, X, Zap } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Sparkles, Plus, CheckCircle2, ShieldAlert, X, Zap, Download } from 'lucide-react';
 import { ScheduleEvent } from './types';
 import CalendarView from './components/CalendarView';
 import EventListView from './components/EventListView';
@@ -22,6 +22,28 @@ export default function App() {
 
   const [todayClickCount, setTodayClickCount] = useState(0);
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
+  const installPromptRef = useRef<any>(null);
+  const [canInstall, setCanInstall] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      installPromptRef.current = e;
+      setCanInstall(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPromptRef.current) return;
+    installPromptRef.current.prompt();
+    const { outcome } = await installPromptRef.current.userChoice;
+    if (outcome === 'accepted') {
+      installPromptRef.current = null;
+      setCanInstall(false);
+    }
+  };
 
   useEffect(() => {
     if (syncStatus === 'syncing') {
@@ -161,22 +183,32 @@ export default function App() {
               </h1>
             </div>
 
-            {/* Sync badge */}
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white/40 text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm
-              ${syncStatus === 'error'
-                ? 'bg-red-500/80 text-white'
-                : syncStatus === 'syncing'
-                  ? 'bg-[#FBBF24]/90 text-[#1E293B]'
-                  : 'bg-white/20 text-white'}`}>
-              {syncStatus === 'error'
-                ? <ShieldAlert className="w-3 h-3" strokeWidth={2.5} />
-                : syncStatus === 'syncing'
-                  ? <span className="animate-spin inline-block">⟳</span>
-                  : <CheckCircle2 className="w-3 h-3" strokeWidth={2.5} />}
-              <span>
-                {syncStatus === 'syncing' ? 'Sync...' : syncStatus === 'error' ? 'Error' : 'Live'}
-              </span>
-            </div>
+            {/* 다운로드(설치) 버튼 */}
+            {canInstall ? (
+              <button
+                onClick={handleInstall}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white text-[10px] font-bold bg-[#FBBF24] text-[#1E293B] shadow-pop-sm btn-candy cursor-pointer"
+              >
+                <Download className="w-3 h-3" strokeWidth={2.5} />
+                <span>다운로드</span>
+              </button>
+            ) : (
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white/40 text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm
+                ${syncStatus === 'error'
+                  ? 'bg-red-500/80 text-white'
+                  : syncStatus === 'syncing'
+                    ? 'bg-[#FBBF24]/90 text-[#1E293B]'
+                    : 'bg-white/20 text-white'}`}>
+                {syncStatus === 'error'
+                  ? <ShieldAlert className="w-3 h-3" strokeWidth={2.5} />
+                  : syncStatus === 'syncing'
+                    ? <span className="animate-spin inline-block">⟳</span>
+                    : <CheckCircle2 className="w-3 h-3" strokeWidth={2.5} />}
+                <span>
+                  {syncStatus === 'syncing' ? 'Sync...' : syncStatus === 'error' ? 'Error' : 'Live'}
+                </span>
+              </div>
+            )}
           </div>
         </header>
 
@@ -199,6 +231,7 @@ export default function App() {
 
           <EventListView
             selectedDate={selectedDate}
+            currentMonth={currentCalendarDate}
             events={events.filter(e => e.attendees !== '삭제됨')}
             onEditEvent={(ev) => { setEditingEvent(ev); setIsFormOpen(true); }}
             onDeleteEvent={handleDeleteEvent}
@@ -221,7 +254,7 @@ export default function App() {
         {/* ── Event Form Modal ── */}
         {isFormOpen && (
           <EventForm
-            selectedDate={selectedDate}
+            selectedDate={selectedDate || new Date().toISOString().slice(0, 10)}
             editingEvent={editingEvent}
             onSave={handleSaveEvent}
             onCancel={() => { setIsFormOpen(false); setEditingEvent(null); }}

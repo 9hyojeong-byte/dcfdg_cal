@@ -1,0 +1,18 @@
+{
+  "name": "프갤 캘린더",
+  "short_name": "프갤 캘린더",
+  "description": "프다갤 벙 일정 캘린더",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFDF5",
+  "theme_color": "#8B5CF6",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/128/13881/13881077.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
