@@ -46,8 +46,13 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
     try {
       const parts = dateStr.split('-');
       if (parts.length !== 3) return dateStr;
-      const dow = new Date(dateStr).toLocaleDateString('ko-KR', { weekday: 'short' });
-      return `${parseInt(parts[1], 10)}월 ${parseInt(parts[2], 10)}일 (${dow})`;
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const date = new Date(year, month, day);
+      const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+      const dayOfWeek = dayNames[date.getDay()];
+      return `${month + 1}월 ${day}일 (${dayOfWeek})`;
     } catch { return dateStr; }
   };
 

@@ -24,11 +24,19 @@ const stickerColors = [
 // 전역 색상 인덱스 카운터 (날짜 그룹 간 색상이 이어지도록)
 let globalColorIdx = 0;
 
-const formatKoreanDate = (dateStr: string) => {
+const formatKoreanDate = (dateStr: string, includeDayOfWeek: boolean = false) => {
   try {
     const parts = dateStr.split('-');
     if (parts.length !== 3) return dateStr;
-    return `${parseInt(parts[1], 10)}월 ${parseInt(parts[2], 10)}일`;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const date = new Date(year, month, day);
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const dayOfWeek = dayNames[date.getDay()];
+    
+    const formatted = `${month + 1}월 ${day}일`;
+    return includeDayOfWeek ? `${formatted} (${dayOfWeek})` : formatted;
   } catch { return dateStr; }
 };
 
@@ -73,7 +81,7 @@ function EventCard({
           <div className="flex flex-col items-start gap-1">
             {showDate && (
               <span className="text-[10px] font-extrabold text-[#8B5CF6] bg-violet-50 border border-violet-200 px-1.5 py-0.5 rounded-md shrink-0">
-                {formatKoreanDate(ev.date)}
+                {formatKoreanDate(ev.date, true)}
               </span>
             )}
             <div className="flex-1 min-w-0">
@@ -171,7 +179,7 @@ export default function EventListView({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h3 className="font-display text-lg font-extrabold text-[#1E293B] tracking-tight">
-              {formatKoreanDate(selectedDate)} 일정
+              {formatKoreanDate(selectedDate, true)} 일정
             </h3>
             <span className="px-2.5 py-0.5 bg-[#8B5CF6] text-white text-[11px] font-extrabold rounded-full border-2 border-[#1E293B] shadow-pop-sm">
               {dayEvents.length}
