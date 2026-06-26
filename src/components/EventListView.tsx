@@ -24,6 +24,23 @@ const stickerColors = [
 // 전역 색상 인덱스 카운터 (날짜 그룹 간 색상이 이어지도록)
 let globalColorIdx = 0;
 
+const formatKoreanDate = (dateStr: string) => {
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    return `${parseInt(parts[1], 10)}월 ${parseInt(parts[2], 10)}일`;
+  } catch { return dateStr; }
+};
+
+const isNewSchedule = (createdAt: string): boolean => {
+  if (!createdAt) return false;
+  const createdTime = new Date(createdAt).getTime();
+  if (isNaN(createdTime)) return false;
+  const diffTime = Date.now() - createdTime;
+  const threeDaysInMs = 3 * 24 * 60 * 60 * 1000;
+  return diffTime <= threeDaysInMs;
+};
+
 function EventCard({
   ev,
   colorIdx,
@@ -32,6 +49,7 @@ function EventCard({
   onDeleteEvent,
   activeMenuId,
   setActiveMenuId,
+  showDate = false,
 }: {
   ev: ScheduleEvent;
   colorIdx: number;
@@ -40,6 +58,7 @@ function EventCard({
   onDeleteEvent: (id: string, title: string) => void;
   activeMenuId: string | null;
   setActiveMenuId: (id: string | null) => void;
+  showDate?: boolean;
 }) {
   const color = stickerColors[colorIdx % stickerColors.length];
   return (
@@ -51,7 +70,23 @@ function EventCard({
           {ev.endTime && <p className="text-[9px] opacity-75 font-semibold leading-none">~{formatTime(ev.endTime)}</p>}
         </div>
         <div className="flex-1 min-w-0 self-center">
-          <p className="text-sm font-extrabold text-[#1E293B] leading-snug break-all">{ev.title}</p>
+          <div className="flex items-start gap-1.5 flex-wrap">
+            {showDate && (
+              <span className="text-[10px] font-extrabold text-[#8B5CF6] bg-violet-50 border border-violet-200 px-1.5 py-0.5 rounded-md shrink-0 mt-0.5">
+                {formatKoreanDate(ev.date)}
+              </span>
+            )}
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-extrabold text-[#1E293B] leading-snug break-all align-middle mr-1.5">
+                {ev.title}
+              </span>
+              {isNewSchedule(ev.createdAt) && (
+                <span className="px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-extrabold rounded-md border-2 border-[#1E293B] shadow-pop-sm shrink-0 inline-block align-middle">
+                  NEW
+                </span>
+              )}
+            </div>
+          </div>
           {ev.description && (
             <p className="text-[11px] text-[#64748B] mt-0.5 leading-relaxed break-all whitespace-pre-line font-medium max-h-10 overflow-hidden">
               {ev.description}
@@ -121,14 +156,6 @@ export default function EventListView({
     if (window.confirm(`"${title}" 일정을 정말로 삭제하시겠습니까?`)) onDeleteEvent(id);
   };
 
-  const formatKoreanDate = (dateStr: string) => {
-    try {
-      const parts = dateStr.split('-');
-      if (parts.length !== 3) return dateStr;
-      return `${parseInt(parts[1], 10)}월 ${parseInt(parts[2], 10)}일`;
-    } catch { return dateStr; }
-  };
-
   // ── 날짜 선택된 경우: 해당 날짜 일정만 ──
   if (selectedDate) {
     const dayEvents = events
@@ -173,42 +200,24 @@ export default function EventListView({
     );
   }
 
-  // ── 날짜 미선택: 해당 월 전체 일정 날짜별 그루핑 ──
-  const year = currentMonth.getFullYear();
-  const month = currentMonth.getMonth();
-
-  const monthEvents = events
-    .filter(e => {
-      const parts = e.date.split('-');
-      return parseInt(parts[0], 10) === year && parseInt(parts[1], 10) === month + 1;
-    })
-    .sort((a, b) => {
-      if (a.date !== b.date) return a.date.localeCompare(b.date);
-      if (!a.startTime) return -1;
-      if (!b.startTime) return 1;
-      return a.startTime.localeCompare(b.startTime);
-    });
-
-  // 날짜별 그루핑
-  const grouped: { date: string; evs: ScheduleEvent[] }[] = [];
-  for (const ev of monthEvents) {
-    const last = grouped[grouped.length - 1];
-    if (last && last.date === ev.date) last.evs.push(ev);
-    else grouped.push({ date: ev.date, evs: [ev] });
-  }
-
-  // 전체 카드 색상 인덱스를 이어지게 하기 위한 누적 카운터
-  let colorCounter = 0;
+  // ── 날짜 미선택: 모든 일정 등록순 정렬 (최신 등록이 가장 위로) ──
+  const sortedAllEvents = [...events].sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    const aVal = isNaN(aTime) ? 0 : aTime;
+    const bVal = isNaN(bTime) ? 0 : bTime;
+    return bVal - aVal; // descending (newest first)
+  });
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h3 className="font-display text-lg font-extrabold text-[#1E293B] tracking-tight">
-            {month + 1}월 전체 일정
+            전체 일정
           </h3>
           <span className="px-2.5 py-0.5 bg-[#8B5CF6] text-white text-[11px] font-extrabold rounded-full border-2 border-[#1E293B] shadow-pop-sm">
-            {monthEvents.length}
+            {sortedAllEvents.length}
           </span>
         </div>
         <button onClick={onAddEventClick}
@@ -218,33 +227,22 @@ export default function EventListView({
         </button>
       </div>
 
-      {grouped.length === 0 ? (
+      {sortedAllEvents.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="space-y-5">
-          {grouped.map(({ date, evs }) => (
-            <div key={date} className="space-y-2">
-              {/* 날짜 섹션 헤더 */}
-              <div className="flex items-center gap-2">
-                <span className="font-display text-sm font-extrabold text-[#1E293B]">
-                  {formatKoreanDate(date)}
-                </span>
-                <div className="flex-1 h-px bg-[#E2E8F0]" />
-                <span className="text-[10px] font-bold text-[#94A3B8]">{evs.length}개</span>
-              </div>
-              {/* 카드 목록 */}
-              <div className="space-y-2">
-                {evs.map(ev => {
-                  const idx = colorCounter++;
-                  return (
-                    <EventCard key={ev.id} ev={ev} colorIdx={idx}
-                      onEventClick={onEventClick} onEditEvent={onEditEvent}
-                      onDeleteEvent={handleDeleteClick}
-                      activeMenuId={activeMenuId} setActiveMenuId={setActiveMenuId} />
-                  );
-                })}
-              </div>
-            </div>
+        <div className="space-y-3">
+          {sortedAllEvents.map((ev, idx) => (
+            <EventCard
+              key={ev.id}
+              ev={ev}
+              colorIdx={idx}
+              onEventClick={onEventClick}
+              onEditEvent={onEditEvent}
+              onDeleteEvent={handleDeleteClick}
+              activeMenuId={activeMenuId}
+              setActiveMenuId={setActiveMenuId}
+              showDate={true}
+            />
           ))}
         </div>
       )}
