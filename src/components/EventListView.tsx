@@ -70,9 +70,9 @@ function EventCard({
           {ev.endTime && <p className="text-[9px] opacity-75 font-semibold leading-none">~{formatTime(ev.endTime)}</p>}
         </div>
         <div className="flex-1 min-w-0 self-center">
-          <div className="flex items-start gap-1.5 flex-wrap">
+          <div className="flex flex-col items-start gap-1">
             {showDate && (
-              <span className="text-[10px] font-extrabold text-[#8B5CF6] bg-violet-50 border border-violet-200 px-1.5 py-0.5 rounded-md shrink-0 mt-0.5">
+              <span className="text-[10px] font-extrabold text-[#8B5CF6] bg-violet-50 border border-violet-200 px-1.5 py-0.5 rounded-md shrink-0">
                 {formatKoreanDate(ev.date)}
               </span>
             )}
