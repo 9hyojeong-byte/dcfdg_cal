@@ -15,9 +15,21 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
   const [showToast, setShowToast] = useState(false);
 
   const handleCopyLink = async () => {
+    const formattedDate = formatKoreanDate(event.date);
+    const timeText = event.startTime
+      ? `${formatTime(event.startTime)}${event.endTime ? ` ~ ${formatTime(event.endTime)}` : ''}`
+      : '하루종일';
+    const locationText = event.location || '일반';
     const url = `${window.location.origin}${window.location.pathname}?scheduleId=${event.id}`;
+    
+    const textToCopy = `📅 [프다갤 벙 일정]
+• 제목: ${event.title}
+• 일시: ${formattedDate} (${timeText})
+• 장소: ${locationText}
+🔗 링크: ${url}`;
+
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(textToCopy);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2000);
     } catch (err) {
