@@ -54,19 +54,13 @@ function EventCard({
   ev,
   colorIdx,
   onEventClick,
-  onEditEvent,
-  onDeleteEvent,
-  activeMenuId,
-  setActiveMenuId,
+  onOpenMenu,
   showDate = false,
 }: {
   ev: ScheduleEvent;
   colorIdx: number;
   onEventClick: (e: ScheduleEvent) => void;
-  onEditEvent: (e: ScheduleEvent) => void;
-  onDeleteEvent: (id: string, title: string) => void;
-  activeMenuId: string | null;
-  setActiveMenuId: (id: string | null) => void;
+  onOpenMenu: (e: ScheduleEvent) => void;
   showDate?: boolean;
 }) {
   const [showCopyToast, setShowCopyToast] = useState(false);
@@ -160,40 +154,20 @@ function EventCard({
         </div>
 
         <div className="settings-menu-container shrink-0 self-center flex items-center gap-1.5">
-          {activeMenuId === ev.id ? (
-            <div className="flex items-center gap-0.5 bg-white py-1 px-1 rounded-xl border-2 border-[#1E293B] shadow-pop-sm">
-              <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(null); onEditEvent(ev); }}
-                className="p-1.5 text-[#8B5CF6] hover:bg-violet-50 rounded-lg transition flex items-center gap-1 cursor-pointer">
-                <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
-                <span className="text-[10px] font-extrabold">수정</span>
-              </button>
-              <div className="w-px h-3 bg-[#E2E8F0]" />
-              <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(null); onDeleteEvent(ev.id, ev.title); }}
-                className="p-1.5 text-[#F472B6] hover:bg-pink-50 rounded-lg transition flex items-center gap-1 cursor-pointer">
-                <Trash2 className="w-3.5 h-3.5" strokeWidth={2.5} />
-                <span className="text-[10px] font-extrabold">삭제</span>
-              </button>
-              <div className="w-px h-3 bg-[#E2E8F0]" />
-              <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(null); }}
-                className="p-1.5 text-[#94A3B8] hover:bg-[#F1F5F9] rounded-lg transition cursor-pointer">
-                <X className="w-3.5 h-3.5" strokeWidth={2.5} />
-              </button>
-            </div>
-          ) : (
-            <>
-              <button
-                onClick={handleCopyLink}
-                className="w-7 h-7 bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#64748B] rounded-lg border border-[#E2E8F0] flex items-center justify-center transition cursor-pointer"
-                title="일정 링크 복사"
-              >
-                <Link className="w-3.5 h-3.5" strokeWidth={2.5} />
-              </button>
-              <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(ev.id); }}
-                className="w-7 h-7 bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#64748B] rounded-lg border border-[#E2E8F0] flex items-center justify-center transition cursor-pointer">
-                <Settings className="w-3.5 h-3.5" strokeWidth={2.5} />
-              </button>
-            </>
-          )}
+          <button
+            onClick={handleCopyLink}
+            className="w-7 h-7 bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#64748B] rounded-lg border border-[#E2E8F0] flex items-center justify-center transition cursor-pointer"
+            title="일정 링크 복사"
+          >
+            <Link className="w-3.5 h-3.5" strokeWidth={2.5} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenMenu(ev); }}
+            className="w-7 h-7 bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#64748B] rounded-lg border border-[#E2E8F0] flex items-center justify-center transition cursor-pointer"
+            title="일정 관리"
+          >
+            <Settings className="w-3.5 h-3.5" strokeWidth={2.5} />
+          </button>
         </div>
       </div>
 
@@ -217,117 +191,149 @@ export default function EventListView({
   onEventClick,
   onSelectDate,
 }: EventListViewProps) {
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [menuEvent, setMenuEvent] = useState<ScheduleEvent | null>(null);
 
+  // 모달 외부 클릭 시 닫기
   useEffect(() => {
     const handleOutside = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest('.settings-menu-container')) setActiveMenuId(null);
+      const target = e.target as HTMLElement;
+      if (target.closest('.menu-modal-backdrop') && !target.closest('.menu-modal-content')) {
+        setMenuEvent(null);
+      }
     };
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
   const handleDeleteClick = (id: string, title: string) => {
-    if (window.confirm(`"${title}" 일정을 정말로 삭제하시겠습니까?`)) onDeleteEvent(id);
+    if (window.confirm(`"${title}" 일정을 정말로 삭제하시겠습니까?`)) {
+      onDeleteEvent(id);
+    }
   };
 
-  // ── 날짜 선택된 경우: 해당 날짜 일정만 ──
+  // 1. 데이터 준비 (필터링 및 정렬)
+  let displayEvents: ScheduleEvent[] = [];
+  let isFiltered = false;
+
   if (selectedDate) {
-    const dayEvents = events
+    isFiltered = true;
+    displayEvents = events
       .filter(e => e.date === selectedDate)
       .sort((a, b) => {
         if (!a.startTime) return -1;
         if (!b.startTime) return 1;
         return a.startTime.localeCompare(b.startTime);
       });
+  } else {
+    isFiltered = false;
+    displayEvents = [...events].sort((a, b) => {
+      // 날짜 기준 역순(내림차순) 정렬
+      const dateCompare = b.date.localeCompare(a.date);
+      if (dateCompare !== 0) return dateCompare;
 
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h3 className="font-display text-lg font-extrabold text-[#1E293B] tracking-tight">
-              {formatKoreanDate(selectedDate, true)} 일정
-            </h3>
-            <span className="px-2.5 py-0.5 bg-[#8B5CF6] text-white text-[11px] font-extrabold rounded-full border-2 border-[#1E293B] shadow-pop-sm">
-              {dayEvents.length}
-            </span>
+      // 날짜가 같으면 시작 시간 기준 오름차순 정렬
+      if (!a.startTime) return -1;
+      if (!b.startTime) return 1;
+      return a.startTime.localeCompare(b.startTime);
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* ── 헤더 영역 ── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h3 className="font-display text-lg font-extrabold text-[#1E293B] tracking-tight">
+            {isFiltered ? `${formatKoreanDate(selectedDate, true)} 일정` : '전체 일정'}
+          </h3>
+          <span className="px-2.5 py-0.5 bg-[#8B5CF6] text-white text-[11px] font-extrabold rounded-full border-2 border-[#1E293B] shadow-pop-sm">
+            {displayEvents.length}
+          </span>
+          {isFiltered && (
             <button
               onClick={() => onSelectDate('')}
               className="px-2.5 py-0.5 bg-white text-[#1E293B] text-[10px] font-extrabold rounded-md border-2 border-[#1E293B] shadow-pop-sm hover:bg-[#F1F5F9] btn-candy cursor-pointer ml-1"
             >
               전체보기
             </button>
-          </div>
-          <button onClick={onAddEventClick}
-            className="flex items-center gap-1 px-3 py-1.5 bg-white text-[#1E293B] text-xs font-bold rounded-full border-2 border-[#1E293B] shadow-pop-sm btn-candy cursor-pointer">
-            <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
-            <span>추가</span>
-          </button>
+          )}
         </div>
-
-        {dayEvents.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <div className="space-y-3">
-            {dayEvents.map((ev, idx) => (
-              <EventCard key={ev.id} ev={ev} colorIdx={idx}
-                onEventClick={onEventClick} onEditEvent={onEditEvent}
-                onDeleteEvent={handleDeleteClick}
-                activeMenuId={activeMenuId} setActiveMenuId={setActiveMenuId} />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ── 날짜 미선택: 모든 일정 날짜 역순 정렬 (가장 미래의 날짜가 가장 위로) ──
-  const sortedAllEvents = [...events].sort((a, b) => {
-    // 1. 날짜 기준 역순(내림차순) 정렬
-    const dateCompare = b.date.localeCompare(a.date);
-    if (dateCompare !== 0) return dateCompare;
-
-    // 2. 날짜가 같으면 시작 시간 기준 오름차순 정렬
-    if (!a.startTime) return -1;
-    if (!b.startTime) return 1;
-    return a.startTime.localeCompare(b.startTime);
-  });
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="font-display text-lg font-extrabold text-[#1E293B] tracking-tight">
-            전체 일정
-          </h3>
-          <span className="px-2.5 py-0.5 bg-[#8B5CF6] text-white text-[11px] font-extrabold rounded-full border-2 border-[#1E293B] shadow-pop-sm">
-            {sortedAllEvents.length}
-          </span>
-        </div>
-        <button onClick={onAddEventClick}
-          className="flex items-center gap-1 px-3 py-1.5 bg-white text-[#1E293B] text-xs font-bold rounded-full border-2 border-[#1E293B] shadow-pop-sm btn-candy cursor-pointer">
+        <button
+          onClick={onAddEventClick}
+          className="flex items-center gap-1 px-3 py-1.5 bg-white text-[#1E293B] text-xs font-bold rounded-full border-2 border-[#1E293B] shadow-pop-sm btn-candy cursor-pointer"
+        >
           <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
           <span>추가</span>
         </button>
       </div>
 
-      {sortedAllEvents.length === 0 ? (
+      {/* ── 리스트 영역 ── */}
+      {displayEvents.length === 0 ? (
         <EmptyState />
       ) : (
         <div className="space-y-3">
-          {sortedAllEvents.map((ev, idx) => (
+          {displayEvents.map((ev, idx) => (
             <EventCard
               key={ev.id}
               ev={ev}
               colorIdx={idx}
               onEventClick={onEventClick}
-              onEditEvent={onEditEvent}
-              onDeleteEvent={handleDeleteClick}
-              activeMenuId={activeMenuId}
-              setActiveMenuId={setActiveMenuId}
-              showDate={true}
+              onOpenMenu={setMenuEvent}
+              showDate={!isFiltered}
             />
           ))}
+        </div>
+      )}
+
+      {/* ── 일정 관리 오버레이 모달 ── */}
+      {menuEvent && (
+        <div className="fixed inset-0 bg-[#1E293B]/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm menu-modal-backdrop animate-pop-in">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#FFFDF5] rounded-3xl w-full max-w-[280px] border-2 border-[#1E293B] shadow-pop-lg flex flex-col p-5 space-y-4 menu-modal-content"
+          >
+            <div className="text-center space-y-1">
+              <span className="text-[10px] font-extrabold text-[#8B5CF6] bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full inline-block">
+                일정 관리
+              </span>
+              <h4 className="font-display text-sm font-extrabold text-[#1E293B] truncate max-w-full pt-1.5 px-1">
+                {menuEvent.title}
+              </h4>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  const ev = menuEvent;
+                  setMenuEvent(null);
+                  onEditEvent(ev);
+                }}
+                className="w-full py-2.5 bg-[#8B5CF6] text-white font-extrabold text-xs rounded-full border-2 border-[#1E293B] shadow-pop-sm hover:bg-[#7C3AED] transition btn-candy flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Edit2 className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />
+                <span>수정하기</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  const ev = menuEvent;
+                  setMenuEvent(null);
+                  handleDeleteClick(ev.id, ev.title);
+                }}
+                className="w-full py-2.5 bg-[#F472B6] text-[#1E293B] font-extrabold text-xs rounded-full border-2 border-[#1E293B] shadow-pop-sm hover:bg-[#F05DA7] transition btn-candy flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-[#1E293B]" strokeWidth={2.5} />
+                <span>삭제하기</span>
+              </button>
+
+              <button
+                onClick={() => setMenuEvent(null)}
+                className="w-full py-2 bg-white text-[#1E293B] font-bold text-xs rounded-full border-2 border-[#1E293B] shadow-pop-sm hover:bg-[#F1F5F9] transition btn-candy cursor-pointer"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

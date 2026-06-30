@@ -8,6 +8,11 @@ import ImageUploader from './components/ImageUploader';
 import EventDetailModal from './components/EventDetailModal';
 import { fetchSchedules, saveSchedules } from './lib/gasApi';
 
+function isEventDeleted(event: ScheduleEvent): boolean {
+  if (!event.attendees) return false;
+  return event.attendees.split(',').map(n => n.trim()).includes('삭제됨');
+}
+
 export default function App() {
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -89,7 +94,7 @@ export default function App() {
         const params = new URLSearchParams(window.location.search);
         const scheduleId = params.get('scheduleId');
         if (scheduleId) {
-          const activeEvents = loadedEvents.filter(e => e.attendees !== '삭제됨');
+          const activeEvents = loadedEvents.filter(e => !isEventDeleted(e));
           const matched = activeEvents.find(e => e.id === scheduleId);
           if (matched) {
             setSelectedEventForDetail(matched);
@@ -145,9 +150,16 @@ export default function App() {
   };
 
   const handleDeleteEvent = async (id: string) => {
-    const updatedEvents = events.map(e =>
-      e.id === id ? { ...e, attendees: '삭제됨' } : e
-    );
+    const updatedEvents = events.map(e => {
+      if (e.id === id) {
+        const attendeesList = e.attendees ? e.attendees.split(',').map(n => n.trim()) : [];
+        if (!attendeesList.includes('삭제됨')) {
+          attendeesList.push('삭제됨');
+        }
+        return { ...e, attendees: attendeesList.join(', ') };
+      }
+      return e;
+    });
     setEvents(updatedEvents);
     syncSchedulesWithGoogle(updatedEvents);
   };
@@ -257,7 +269,7 @@ export default function App() {
           <CalendarView
             currentDate={currentCalendarDate}
             selectedDate={selectedDate}
-            events={events.filter(e => e.attendees !== '삭제됨')}
+            events={events.filter(e => !isEventDeleted(e))}
             onSelectDate={setSelectedDate}
             onNavigateMonth={handleNavigateMonth}
             onTodayClick={() => {
@@ -272,7 +284,7 @@ export default function App() {
           <EventListView
             selectedDate={selectedDate}
             currentMonth={currentCalendarDate}
-            events={events.filter(e => e.attendees !== '삭제됨')}
+            events={events.filter(e => !isEventDeleted(e))}
             onEditEvent={(ev) => { setEditingEvent(ev); setIsFormOpen(true); }}
             onDeleteEvent={handleDeleteEvent}
             onAddEventClick={() => { setEditingEvent(null); setIsFormOpen(true); }}
