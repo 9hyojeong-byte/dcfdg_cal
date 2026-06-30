@@ -72,3 +72,23 @@ export function normalizeToHourLabel(timeStr: string | null | undefined): string
 
   return '12시';
 }
+
+/**
+ * Returns today's date string in local timezone as YYYY-MM-DD
+ */
+export function getTodayDateStr(): string {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, '0');
+  const d = String(today.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Checks if the given YYYY-MM-DD date string is before today
+ */
+export function isPastDate(dateStr: string): boolean {
+  if (!dateStr) return false;
+  const todayStr = getTodayDateStr();
+  return dateStr < todayStr;
+}

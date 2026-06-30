@@ -277,6 +277,7 @@ export default function App() {
             onDeleteEvent={handleDeleteEvent}
             onAddEventClick={() => { setEditingEvent(null); setIsFormOpen(true); }}
             onEventClick={handleOpenEventDetail}
+            onSelectDate={setSelectedDate}
           />
         </main>
 

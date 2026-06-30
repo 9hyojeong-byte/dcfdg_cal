@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ScheduleEvent } from '../types';
+import { isPastDate } from '../lib/timeUtils';
 
 interface CalendarViewProps {
   currentDate: Date;
@@ -133,7 +134,9 @@ export default function CalendarView({
                   : isToday
                     ? 'bg-[#FBBF24] border-2 border-[#1E293B]'
                     : hasEvents && isCurrentMonth
-                      ? 'bg-violet-50 border border-violet-100 hover:border-violet-300'
+                      ? isPastDate(dateStr)
+                        ? 'bg-slate-50 border border-slate-200 hover:border-slate-300'
+                        : 'bg-violet-50 border border-violet-100 hover:border-violet-300'
                       : 'hover:bg-[#F1F5F9] active:bg-[#E2E8F0]'}
               `}
             >
@@ -150,7 +153,11 @@ export default function CalendarView({
                     <span
                       key={ev.id || eIdx}
                       className={`w-1.5 h-1.5 rounded-full
-                        ${isSelected || isToday ? 'bg-white' : DOT_COLORS[eIdx % DOT_COLORS.length]}`}
+                        ${isSelected || isToday 
+                          ? 'bg-white' 
+                          : isPastDate(dateStr)
+                            ? 'bg-slate-300'
+                            : DOT_COLORS[eIdx % DOT_COLORS.length]}`}
                     />
                   ))}
                 </div>

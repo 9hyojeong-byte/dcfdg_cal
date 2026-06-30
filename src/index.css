@@ -21,6 +21,7 @@ body {
 .shadow-pop-amber   { box-shadow: 4px 4px 0px 0px #FBBF24; }
 .shadow-pop-emerald { box-shadow: 4px 4px 0px 0px #34D399; }
 .shadow-pop-sky     { box-shadow: 4px 4px 0px 0px #38BDF8; }
+.shadow-pop-gray    { box-shadow: 4px 4px 0px 0px #94A3B8; }
 
 /* ── Dot-grid background ── */
 .dot-grid {
