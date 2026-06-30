@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, MapPin, AlignLeft, Users, UserPlus, Sparkles } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, AlignLeft, Users, UserPlus, Sparkles, Link } from 'lucide-react';
 import { ScheduleEvent } from '../types';
 import { formatTime } from '../lib/timeUtils';
 
@@ -12,6 +12,19 @@ interface EventDetailModalProps {
 export default function EventDetailModal({ event, onClose, onUpdateEvent }: EventDetailModalProps) {
   const [newName, setNewName] = useState('');
   const [savedMyName, setSavedMyName] = useState('');
+  const [showToast, setShowToast] = useState(false);
+
+  const handleCopyLink = async () => {
+    const url = `${window.location.origin}${window.location.pathname}?scheduleId=${event.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+      alert('링크 복사에 실패했습니다.');
+    }
+  };
 
   useEffect(() => {
     const cached = localStorage.getItem('lastAttendeeName') || '';
@@ -68,7 +81,7 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
 
   return (
     <div className="fixed inset-0 bg-[#1E293B]/70 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
-      <div className="bg-[#FFFDF5] rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden border-2 border-[#1E293B] shadow-pop-lg flex flex-col max-h-[92vh] animate-slide-up sm:animate-pop-in">
+      <div className="bg-[#FFFDF5] rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden border-2 border-[#1E293B] shadow-pop-lg flex flex-col max-h-[92vh] animate-slide-up sm:animate-pop-in relative">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b-2 border-[#1E293B] bg-white shrink-0">
@@ -78,12 +91,23 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
             </span>
             <span className="text-xs font-bold text-[#94A3B8]">일정 상세</span>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full border-2 border-[#1E293B] bg-[#F1F5F9] hover:bg-[#E2E8F0] flex items-center justify-center transition cursor-pointer"
-          >
-            <X className="w-4 h-4 text-[#1E293B]" strokeWidth={2.5} />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleCopyLink}
+              type="button"
+              className="w-8 h-8 rounded-full border-2 border-[#1E293B] bg-[#F1F5F9] hover:bg-[#E2E8F0] flex items-center justify-center transition cursor-pointer"
+              title="링크 복사"
+            >
+              <Link className="w-4 h-4 text-[#1E293B]" strokeWidth={2.5} />
+            </button>
+            <button
+              onClick={onClose}
+              type="button"
+              className="w-8 h-8 rounded-full border-2 border-[#1E293B] bg-[#F1F5F9] hover:bg-[#E2E8F0] flex items-center justify-center transition cursor-pointer"
+            >
+              <X className="w-4 h-4 text-[#1E293B]" strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Content */}
@@ -208,6 +232,14 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
             확인 및 닫기
           </button>
         </div>
+
+        {/* Copy Link Toast Notification */}
+        {showToast && (
+          <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-[#1E293B] text-white text-xs font-bold px-4 py-2.5 rounded-full border-2 border-[#1E293B] shadow-pop z-[60] animate-pop-in flex items-center gap-1.5 whitespace-nowrap">
+            <span>일정 링크가 복사되었습니다!</span>
+            <span>🔗</span>
+          </div>
+        )}
       </div>
     </div>
   );

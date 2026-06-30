@@ -25,6 +25,28 @@ export default function App() {
   const installPromptRef = useRef<any>(null);
   const [canInstall, setCanInstall] = useState(false);
 
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const initialDeepLinkChecked = useRef(false);
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
+  const handleOpenEventDetail = (event: ScheduleEvent) => {
+    setSelectedEventForDetail(event);
+    const newUrl = `${window.location.origin}${window.location.pathname}?scheduleId=${event.id}`;
+    window.history.replaceState({}, document.title, newUrl);
+  };
+
+  const handleCloseEventDetail = () => {
+    setSelectedEventForDetail(null);
+    const newUrl = `${window.location.origin}${window.location.pathname}`;
+    window.history.replaceState({}, document.title, newUrl);
+  };
+
   useEffect(() => {
     const handler = (e: any) => {
       e.preventDefault();
@@ -60,6 +82,31 @@ export default function App() {
       const loadedEvents = await fetchSchedules();
       setEvents(loadedEvents);
       setSyncStatus('success');
+
+      // Process deep link if not checked yet
+      if (!initialDeepLinkChecked.current) {
+        initialDeepLinkChecked.current = true;
+        const params = new URLSearchParams(window.location.search);
+        const scheduleId = params.get('scheduleId');
+        if (scheduleId) {
+          const activeEvents = loadedEvents.filter(e => e.attendees !== '삭제됨');
+          const matched = activeEvents.find(e => e.id === scheduleId);
+          if (matched) {
+            setSelectedEventForDetail(matched);
+            const targetDate = new Date(matched.date);
+            if (!isNaN(targetDate.getTime())) {
+              setCurrentCalendarDate(targetDate);
+              setSelectedDate(matched.date);
+            }
+          } else {
+            // Show error toast
+            setToastMessage('존재하지 않거나 삭제된 일정입니다.');
+            // Clean URL query parameter
+            const newUrl = `${window.location.origin}${window.location.pathname}`;
+            window.history.replaceState({}, document.title, newUrl);
+          }
+        }
+      }
     } catch (err) {
       console.error('Error syncing with Google Apps Script:', err);
       setSyncStatus('error');
@@ -229,7 +276,7 @@ export default function App() {
             onEditEvent={(ev) => { setEditingEvent(ev); setIsFormOpen(true); }}
             onDeleteEvent={handleDeleteEvent}
             onAddEventClick={() => { setEditingEvent(null); setIsFormOpen(true); }}
-            onEventClick={setSelectedEventForDetail}
+            onEventClick={handleOpenEventDetail}
           />
         </main>
 
@@ -258,7 +305,7 @@ export default function App() {
         {selectedEventForDetail && (
           <EventDetailModal
             event={selectedEventForDetail}
-            onClose={() => setSelectedEventForDetail(null)}
+            onClose={handleCloseEventDetail}
             onUpdateEvent={handleUpdateEvent}
           />
         )}
@@ -318,6 +365,14 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Global Error/Info Toast */}
+      {toastMessage && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-[#1E293B] text-white text-xs font-bold px-5 py-3 rounded-full border-2 border-[#1E293B] shadow-pop z-50 animate-pop-in flex items-center gap-2 whitespace-nowrap">
+          <span>⚠️</span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }
