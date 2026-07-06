@@ -33,7 +33,7 @@ export default function CalendarView({
   const month = currentDate.getMonth();
   const monthLabel = `${year}년 ${month + 1}월`;
 
-  const firstDayIndex = new Date(year, month, 1).getDay();
+  const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7;
   const totalDays = new Date(year, month + 1, 0).getDate();
   const prevMonthTotalDays = new Date(year, month, 0).getDate();
 
@@ -54,7 +54,7 @@ export default function CalendarView({
   const getEventsForDay = (dateStr: string) => events.filter(e => e.date === dateStr);
   const todayStr = formatLocalDate(new Date());
 
-  const daysOfWeek = ['일', '월', '화', '수', '목', '금', '토'];
+  const daysOfWeek = ['월', '화', '수', '목', '금', '토', '일'];
 
   return (
     <div className="bg-white rounded-2xl border-2 border-[#1E293B] shadow-pop p-4">
@@ -101,7 +101,7 @@ export default function CalendarView({
           <div
             key={day}
             className={`text-[10px] font-extrabold tracking-wider py-1
-              ${i === 0 ? 'text-[#F472B6]' : i === 6 ? 'text-[#38BDF8]' : 'text-[#94A3B8]'}`}
+              ${i === 6 ? 'text-[#F472B6]' : i === 5 ? 'text-[#38BDF8]' : 'text-[#94A3B8]'}`}
           >
             {day}
           </div>
@@ -116,8 +116,8 @@ export default function CalendarView({
           const dayEvents = getEventsForDay(dateStr);
           const hasEvents = dayEvents.length > 0;
           const dow = idx % 7;
-          const isSun = dow === 0;
-          const isSat = dow === 6;
+          const isSun = dow === 6;
+          const isSat = dow === 5;
 
           let numColor = 'text-[#1E293B] font-bold';
           if (!isCurrentMonth) numColor = 'text-[#CBD5E1] font-medium';
