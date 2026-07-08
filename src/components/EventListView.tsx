@@ -95,10 +95,19 @@ function EventCard({
     const locationText = ev.location || '일반';
     const url = `${window.location.origin}${window.location.pathname}?scheduleId=${ev.id}`;
     
+    const attendeesList = ev.attendees
+      ? ev.attendees.split(',').map(n => n.trim()).filter(n => n.length > 0)
+      : [];
+    const attendeesText = attendeesList.length > 0
+      ? `${attendeesList.join(', ')} (${attendeesList.length}명)`
+      : '없음';
+
     const textToCopy = `📅 [프다갤 벙 일정]
 • 제목: ${ev.title}
 • 일시: ${formattedDate} (${timeText})
 • 장소: ${locationText}
+• 메모: ${ev.description || '-'}
+• 참석자: ${attendeesText}
 🔗 링크: ${url}`;
 
     try {

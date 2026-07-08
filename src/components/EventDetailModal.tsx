@@ -22,10 +22,19 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
     const locationText = event.location || '일반';
     const url = `${window.location.origin}${window.location.pathname}?scheduleId=${event.id}`;
     
+    const attendeesList = event.attendees
+      ? event.attendees.split(',').map(n => n.trim()).filter(n => n.length > 0)
+      : [];
+    const attendeesText = attendeesList.length > 0
+      ? `${attendeesList.join(', ')} (${attendeesList.length}명)`
+      : '없음';
+
     const textToCopy = `📅 [프다갤 벙 일정]
 • 제목: ${event.title}
 • 일시: ${formattedDate} (${timeText})
 • 장소: ${locationText}
+• 메모: ${event.description || '-'}
+• 참석자: ${attendeesText}
 🔗 링크: ${url}`;
 
     try {
