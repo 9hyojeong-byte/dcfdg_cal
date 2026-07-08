@@ -95,7 +95,7 @@ export default function App() {
         const scheduleId = params.get('scheduleId');
         if (scheduleId) {
           const activeEvents = loadedEvents.filter(e => !isEventDeleted(e));
-          const matched = activeEvents.find(e => e.id === scheduleId);
+          const matched = activeEvents.find(e => String(e.id) === String(scheduleId));
           if (matched) {
             setSelectedEventForDetail(matched);
             const targetDate = new Date(matched.date);
@@ -137,9 +137,9 @@ export default function App() {
 
   const handleSaveEvent = async (formEvent: Omit<ScheduleEvent, 'createdAt'>) => {
     let updatedEvents: ScheduleEvent[] = [];
-    const isExisting = events.some(e => e.id === formEvent.id);
+    const isExisting = events.some(e => String(e.id) === String(formEvent.id));
     if (isExisting) {
-      updatedEvents = events.map(e => e.id === formEvent.id ? { ...e, ...formEvent } : e);
+      updatedEvents = events.map(e => String(e.id) === String(formEvent.id) ? { ...e, ...formEvent } : e);
     } else {
       updatedEvents = [...events, { ...formEvent, createdAt: new Date().toISOString() }];
     }
@@ -151,7 +151,7 @@ export default function App() {
 
   const handleDeleteEvent = async (id: string) => {
     const updatedEvents = events.map(e => {
-      if (e.id === id) {
+      if (String(e.id) === String(id)) {
         const attendeesList = e.attendees ? e.attendees.split(',').map(n => n.trim()) : [];
         if (!attendeesList.includes('삭제됨')) {
           attendeesList.push('삭제됨');
@@ -165,9 +165,9 @@ export default function App() {
   };
 
   const handleUpdateEvent = async (updatedEvent: ScheduleEvent) => {
-    const updatedEvents = events.map(e => e.id === updatedEvent.id ? updatedEvent : e);
+    const updatedEvents = events.map(e => String(e.id) === String(updatedEvent.id) ? updatedEvent : e);
     setEvents(updatedEvents);
-    if (selectedEventForDetail?.id === updatedEvent.id) setSelectedEventForDetail(updatedEvent);
+    if (selectedEventForDetail && String(selectedEventForDetail.id) === String(updatedEvent.id)) setSelectedEventForDetail(updatedEvent);
     syncSchedulesWithGoogle(updatedEvents);
   };
 
