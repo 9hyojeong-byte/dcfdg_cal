@@ -88,7 +88,9 @@ function EventCard({
 
   const handleCopyLink = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const formattedDate = formatKoreanDate(ev.date, true);
+    const formattedDate = ev.endDate
+      ? `${formatKoreanDate(ev.date, true)} ~ ${formatKoreanDate(ev.endDate, true)}`
+      : formatKoreanDate(ev.date, true);
     const timeText = ev.startTime
       ? `${formatTime(ev.startTime)}${ev.endTime ? ` ~ ${formatTime(ev.endTime)}` : ''}`
       : '하루종일';
@@ -133,7 +135,7 @@ function EventCard({
             <div className="flex flex-col items-start gap-1">
               {showDate && (
                 <span className={`text-[10px] font-extrabold ${dateBadgeText} ${dateBadgeBg} border ${dateBadgeBorder} px-1.5 py-0.5 rounded-md shrink-0`}>
-                  {formatKoreanDate(ev.date, true)}
+                  {formatKoreanDate(ev.date, true)}{ev.endDate ? ` ~ ${formatKoreanDate(ev.endDate, true)}` : ''}
                 </span>
               )}
               <div className="flex-1 min-w-0">
@@ -227,7 +229,12 @@ export default function EventListView({
   if (selectedDate) {
     isFiltered = true;
     displayEvents = events
-      .filter(e => e.date === selectedDate)
+      .filter(e => {
+        if (e.endDate) {
+          return selectedDate >= e.date && selectedDate <= e.endDate;
+        }
+        return e.date === selectedDate;
+      })
       .sort((a, b) => {
         if (!a.startTime) return -1;
         if (!b.startTime) return 1;

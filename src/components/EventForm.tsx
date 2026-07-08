@@ -18,6 +18,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => `${i}시`);
 export default function EventForm({ selectedDate, editingEvent, onSave, onCancel }: EventFormProps) {
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [location, setLocation] = useState<LocationType>('딥스');
   const [isAllDay, setIsAllDay] = useState(false);
   const [session, setSession] = useState('1부');
@@ -28,6 +29,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
     if (editingEvent) {
       setTitle(editingEvent.title);
       setDate(editingEvent.date);
+      setEndDate(editingEvent.endDate || editingEvent.date);
       setDescription(editingEvent.description || '');
 
       let detLocation: LocationType = '딥스';
@@ -56,7 +58,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
         setHour('12시');
       }
     } else {
-      setTitle(''); setDate(selectedDate); setLocation('딥스');
+      setTitle(''); setDate(selectedDate); setEndDate(selectedDate); setLocation('딥스');
       setIsAllDay(false); setSession('1부'); setHour('12시'); setDescription('');
     }
   }, [editingEvent, selectedDate]);
@@ -64,6 +66,10 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !date) { alert('일정 제목과 날짜는 필수입니다.'); return; }
+    if (endDate && endDate < date) {
+      alert('종료 날짜는 시작 날짜보다 빠를 수 없습니다.');
+      return;
+    }
 
     let finalStartTime: string | null = null;
     if (!isAllDay) {
@@ -80,6 +86,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
       id: editingEvent?.id || `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       title: title.trim(),
       date,
+      endDate: endDate && endDate !== date ? endDate : null,
       startTime: finalStartTime,
       endTime: editingEvent ? editingEvent.endTime : null,
       description: description.trim() || null,
@@ -128,18 +135,42 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
             />
           </div>
 
-          {/* Date */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5" />날짜 *
-            </label>
-            <input
-              type="date"
-              required
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition"
-            />
+          {/* Date Selection */}
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5" />
+                {location === '자유일정' ? '시작 날짜 *' : '날짜 *'}
+              </label>
+              <input
+                type="date"
+                required
+                value={date}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  if (location !== '자유일정' || !endDate || endDate < e.target.value) {
+                    setEndDate(e.target.value);
+                  }
+                }}
+                className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition"
+              />
+            </div>
+
+            {location === '자유일정' && (
+              <div className="space-y-1.5 animate-fade-in">
+                <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5" />종료 날짜 *
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={endDate || date}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  min={date}
+                  className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition"
+                />
+              </div>
+            )}
           </div>
 
           {/* Location */}
@@ -156,6 +187,9 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
                     setLocation(loc);
                     if (loc === '딥스' || loc === '파라') setSession('1부');
                     else setHour('12시');
+                    if (loc !== '자유일정') {
+                      setEndDate(date);
+                    }
                   }}
                   className={`px-3.5 py-2 text-[11px] font-extrabold rounded-full border-2 transition cursor-pointer
                     ${location === loc

@@ -15,7 +15,9 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
   const [showToast, setShowToast] = useState(false);
 
   const handleCopyLink = async () => {
-    const formattedDate = formatKoreanDate(event.date);
+    const formattedDate = event.endDate
+      ? `${formatKoreanDate(event.date)} ~ ${formatKoreanDate(event.endDate)}`
+      : formatKoreanDate(event.date);
     const timeText = event.startTime
       ? `${formatTime(event.startTime)}${event.endTime ? ` ~ ${formatTime(event.endTime)}` : ''}`
       : '하루종일';
@@ -142,7 +144,7 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
             <div className="flex flex-wrap gap-2">
               <div className="flex items-center gap-1.5 bg-[#F1F5F9] px-3 py-1.5 rounded-full border border-[#E2E8F0] text-xs font-bold text-[#64748B]">
                 <Calendar className="w-3.5 h-3.5 text-[#94A3B8]" strokeWidth={2} />
-                <span>{formatKoreanDate(event.date)}</span>
+                <span>{formatKoreanDate(event.date)}{event.endDate ? ` ~ ${formatKoreanDate(event.endDate)}` : ''}</span>
               </div>
               <div className="flex items-center gap-1.5 bg-[#F1F5F9] px-3 py-1.5 rounded-full border border-[#E2E8F0] text-xs font-bold text-[#64748B]">
                 <Clock className="w-3.5 h-3.5 text-[#94A3B8]" strokeWidth={2} />

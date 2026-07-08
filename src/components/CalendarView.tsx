@@ -51,7 +51,13 @@ export default function CalendarView({
     gridItems.push({ dateStr: formatLocalDate(new Date(year, month + 1, d)), dayNum: d, isCurrentMonth: false });
   }
 
-  const getEventsForDay = (dateStr: string) => events.filter(e => e.date === dateStr);
+  const getEventsForDay = (dateStr: string) =>
+    events.filter(e => {
+      if (e.endDate) {
+        return dateStr >= e.date && dateStr <= e.endDate;
+      }
+      return e.date === dateStr;
+    });
   const todayStr = formatLocalDate(new Date());
 
   const daysOfWeek = ['월', '화', '수', '목', '금', '토', '일'];

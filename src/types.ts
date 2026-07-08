@@ -1,7 +1,8 @@
 export interface ScheduleEvent {
   id: string; // Google Sheet row index, or a unique UUID
   title: string;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD (Start Date)
+  endDate?: string | null; // YYYY-MM-DD (End Date)
   startTime: string | null; // HH:MM, or part like "1부" etc
   endTime: string | null; // HH:MM
   description: string | null;
