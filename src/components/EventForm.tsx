@@ -135,6 +135,35 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
             />
           </div>
 
+          {/* Location */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5" />장소 *
+            </label>
+            <div className="flex gap-1.5 flex-wrap">
+              {LOCATIONS.map((loc) => (
+                <button
+                  key={loc}
+                  type="button"
+                  onClick={() => {
+                    setLocation(loc);
+                    if (loc === '딥스' || loc === '파라') setSession('1부');
+                    else setHour('12시');
+                    if (loc !== '자유일정') {
+                      setEndDate(date);
+                    }
+                  }}
+                  className={`px-3.5 py-2 text-[11px] font-extrabold rounded-full border-2 transition cursor-pointer
+                    ${location === loc
+                      ? 'bg-[#8B5CF6] text-white border-[#1E293B] shadow-pop-sm'
+                      : 'bg-white text-[#64748B] border-[#CBD5E1] hover:border-[#8B5CF6] hover:text-[#8B5CF6]'}`}
+                >
+                  {loc}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Date Selection */}
           <div className="space-y-4">
             <div className="space-y-1.5">
@@ -171,35 +200,6 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
                 />
               </div>
             )}
-          </div>
-
-          {/* Location */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5" />장소 *
-            </label>
-            <div className="flex gap-1.5 flex-wrap">
-              {LOCATIONS.map((loc) => (
-                <button
-                  key={loc}
-                  type="button"
-                  onClick={() => {
-                    setLocation(loc);
-                    if (loc === '딥스' || loc === '파라') setSession('1부');
-                    else setHour('12시');
-                    if (loc !== '자유일정') {
-                      setEndDate(date);
-                    }
-                  }}
-                  className={`px-3.5 py-2 text-[11px] font-extrabold rounded-full border-2 transition cursor-pointer
-                    ${location === loc
-                      ? 'bg-[#8B5CF6] text-white border-[#1E293B] shadow-pop-sm'
-                      : 'bg-white text-[#64748B] border-[#CBD5E1] hover:border-[#8B5CF6] hover:text-[#8B5CF6]'}`}
-                >
-                  {loc}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Time/Session */}
