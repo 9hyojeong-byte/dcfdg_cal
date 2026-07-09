@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ScheduleEvent } from '../types';
 import { isPastDate } from '../lib/timeUtils';
+import { getDotColorClass, LOCATION_COLORS } from '../lib/locationColors';
 
 interface CalendarViewProps {
   currentDate: Date;
@@ -18,8 +19,6 @@ function formatLocalDate(date: Date): string {
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
-
-const DOT_COLORS = ['bg-[#8B5CF6]', 'bg-[#F472B6]', 'bg-[#FBBF24]', 'bg-[#34D399]'];
 
 export default function CalendarView({
   currentDate,
@@ -163,7 +162,7 @@ export default function CalendarView({
                           ? 'bg-white' 
                           : isPastDate(dateStr)
                             ? 'bg-slate-300'
-                            : DOT_COLORS[eIdx % DOT_COLORS.length]}`}
+                            : getDotColorClass(ev.location)}`}
                     />
                   ))}
                 </div>
@@ -171,6 +170,16 @@ export default function CalendarView({
             </button>
           );
         })}
+      </div>
+
+      {/* ── Legend ── */}
+      <div className="mt-4 pt-3 border-t border-[#F1F5F9] flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1">
+        {Object.entries(LOCATION_COLORS).map(([name, colors]) => (
+          <div key={name} className="flex items-center gap-1 text-[10px] font-extrabold text-[#64748B]">
+            <span className={`w-1.5 h-1.5 rounded-full ${colors.bg}`} />
+            <span>{name}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

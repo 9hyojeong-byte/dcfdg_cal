@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, AlignLeft, Check, MapPin } from 'lucide-react';
 import { ScheduleEvent } from '../types';
 import { formatTime, normalizeToHourLabel } from '../lib/timeUtils';
+import { LOCATION_COLORS } from '../lib/locationColors';
 
 interface EventFormProps {
   selectedDate: string;
@@ -155,8 +156,8 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
                   }}
                   className={`px-3.5 py-2 text-[11px] font-extrabold rounded-full border-2 transition cursor-pointer
                     ${location === loc
-                      ? 'bg-[#8B5CF6] text-white border-[#1E293B] shadow-pop-sm'
-                      : 'bg-white text-[#64748B] border-[#CBD5E1] hover:border-[#8B5CF6] hover:text-[#8B5CF6]'}`}
+                      ? `${LOCATION_COLORS[loc].bg} text-white border-[#1E293B] shadow-pop-sm`
+                      : `bg-white text-[#64748B] border-[#CBD5E1] ${LOCATION_COLORS[loc].hoverBorder} ${LOCATION_COLORS[loc].hoverText}`}`}
                 >
                   {loc}
                 </button>
