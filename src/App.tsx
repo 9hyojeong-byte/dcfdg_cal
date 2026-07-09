@@ -17,6 +17,7 @@ export default function App() {
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [currentCalendarDate, setCurrentCalendarDate] = useState<Date>(new Date());
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<ScheduleEvent | null>(null);
@@ -201,6 +202,10 @@ export default function App() {
     });
   };
 
+  const filteredEvents = selectedLocation
+    ? events.filter(e => !isEventDeleted(e) && e.location && e.location.trim().includes(selectedLocation))
+    : events.filter(e => !isEventDeleted(e));
+
   return (
     <div className="min-h-screen bg-[#FFFDF5] dot-grid flex justify-center py-0 sm:py-10 relative overflow-hidden">
 
@@ -269,7 +274,7 @@ export default function App() {
           <CalendarView
             currentDate={currentCalendarDate}
             selectedDate={selectedDate}
-            events={events.filter(e => !isEventDeleted(e))}
+            events={filteredEvents}
             onSelectDate={setSelectedDate}
             onNavigateMonth={handleNavigateMonth}
             onTodayClick={() => {
@@ -279,12 +284,14 @@ export default function App() {
                 return next;
               });
             }}
+            selectedLocation={selectedLocation}
+            onSelectLocation={setSelectedLocation}
           />
 
           <EventListView
             selectedDate={selectedDate}
             currentMonth={currentCalendarDate}
-            events={events.filter(e => !isEventDeleted(e))}
+            events={filteredEvents}
             onEditEvent={(ev) => { setEditingEvent(ev); setIsFormOpen(true); }}
             onDeleteEvent={handleDeleteEvent}
             onAddEventClick={() => { setEditingEvent(null); setIsFormOpen(true); }}

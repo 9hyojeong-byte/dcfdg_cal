@@ -11,6 +11,8 @@ interface CalendarViewProps {
   onSelectDate: (dateStr: string) => void;
   onNavigateMonth: (offset: number) => void;
   onTodayClick?: () => void;
+  selectedLocation: string | null;
+  onSelectLocation: (location: string | null) => void;
 }
 
 function formatLocalDate(date: Date): string {
@@ -27,7 +29,21 @@ export default function CalendarView({
   onSelectDate,
   onNavigateMonth,
   onTodayClick,
+  selectedLocation,
+  onSelectLocation,
 }: CalendarViewProps) {
+  const legendRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (selectedLocation && legendRef.current && !legendRef.current.contains(e.target as Node)) {
+        onSelectLocation(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [selectedLocation, onSelectLocation]);
+
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const monthLabel = `${year}년 ${month + 1}월`;
@@ -173,13 +189,37 @@ export default function CalendarView({
       </div>
 
       {/* ── Legend ── */}
-      <div className="mt-4 pt-3 border-t border-[#F1F5F9] flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1">
-        {Object.entries(LOCATION_COLORS).map(([name, colors]) => (
-          <div key={name} className="flex items-center gap-1 text-[10px] font-extrabold text-[#64748B]">
-            <span className={`w-1.5 h-1.5 rounded-full ${colors.bg}`} />
-            <span>{name}</span>
-          </div>
-        ))}
+      <div 
+        ref={legendRef}
+        className="mt-4 pt-3 border-t border-[#F1F5F9] flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5"
+      >
+        {Object.entries(LOCATION_COLORS).map(([name, colors]) => {
+          const isActive = selectedLocation === name;
+          const isAnyActive = selectedLocation !== null;
+          return (
+            <button
+              key={name}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isActive) {
+                  onSelectLocation(null);
+                } else {
+                  onSelectLocation(name);
+                }
+              }}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-extrabold transition-all duration-200 cursor-pointer
+                ${isActive 
+                  ? `${colors.text} ${colors.border} bg-white shadow-pop-sm scale-105` 
+                  : 'text-[#64748B] border-transparent hover:bg-slate-50'
+                }
+                ${isAnyActive && !isActive ? 'opacity-40 scale-95' : 'opacity-100'}
+              `}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${colors.bg}`} />
+              <span>{name}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

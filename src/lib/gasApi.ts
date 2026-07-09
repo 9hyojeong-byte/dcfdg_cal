@@ -20,8 +20,8 @@ async function fetchSchedulesDirectly(): Promise<ScheduleEvent[]> {
 async function saveSchedulesDirectly(schedules: ScheduleEvent[]): Promise<void> {
   const res = await fetch(GAS_URL, {
     method: "POST",
-    headers: { 
-      "Content-Type": "text/plain;charset=utf-8" 
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
     },
     body: JSON.stringify({
       action: "sync",
@@ -44,7 +44,7 @@ async function saveSchedulesDirectly(schedules: ScheduleEvent[]): Promise<void> 
 export async function fetchSchedules(): Promise<ScheduleEvent[]> {
   try {
     const res = await fetch('/api/schedules');
-    
+
     if (res.status === 404) {
       console.warn("Express proxy returned 404. Falling back to direct client-side fetch to Google Apps Script...");
       return await fetchSchedulesDirectly();
