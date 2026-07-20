@@ -1,6 +1,6 @@
 import { ScheduleEvent } from '../types';
 
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwvRLUUnPpyFbaPambUeJ672_-xYA0_Uo84ziijuPCmtz0wMdCzgt6PydBT4evnHJdA1A/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyitUIAd8Lmtwm6BIhemWcrc_sOcVN4iXgWpW8aIuAunenWvsFxevLCbZ_Da02rrNXd5A/exec";
 
 async function fetchSchedulesDirectly(): Promise<ScheduleEvent[]> {
   const res = await fetch(GAS_URL, {

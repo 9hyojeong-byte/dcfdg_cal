@@ -11,7 +11,7 @@ const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwvRLUUnPpyFbaPambUeJ672_-xYA0_Uo84ziijuPCmtz0wMdCzgt6PydBT4evnHJdA1A/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyitUIAd8Lmtwm6BIhemWcrc_sOcVN4iXgWpW8aIuAunenWvsFxevLCbZ_Da02rrNXd5A/exec";
 
 // 1. GET Schedules from Google Apps Script Web App
 app.get("/api/schedules", async (req, res) => {
@@ -48,7 +48,7 @@ app.post("/api/schedules", async (req, res) => {
 
     const gasRes = await fetch(GAS_URL, {
       method: "POST",
-      headers: { 
+      headers: {
         "Content-Type": "application/json",
         "Accept": "application/json"
       },
