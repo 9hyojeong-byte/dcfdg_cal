@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, AlignLeft, Check, MapPin, User, Users } from 'lucide-react';
+import { X, Calendar, Clock, AlignLeft, Check, MapPin, User } from 'lucide-react';
 import { ScheduleEvent } from '../types';
 import { formatTime, normalizeToHourLabel } from '../lib/timeUtils';
 import { LOCATION_COLORS } from '../lib/locationColors';
@@ -18,8 +18,8 @@ const HOURS = Array.from({ length: 24 }, (_, i) => `${i}시`);
 
 export default function EventForm({ selectedDate, editingEvent, onSave, onCancel }: EventFormProps) {
   const [author, setAuthor] = useState('');
-  const [otherAttendees, setOtherAttendees] = useState('');
   const [title, setTitle] = useState('');
+  const [isTitleUserModified, setIsTitleUserModified] = useState(false);
   const [date, setDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [location, setLocation] = useState<LocationType>('딥스');
@@ -34,6 +34,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
 
     if (editingEvent) {
       setTitle(editingEvent.title);
+      setIsTitleUserModified(true); // 기존 수정 건은 유저 수정 상태로 유지
       setDate(editingEvent.date);
       setEndDate(editingEvent.endDate || editingEvent.date);
       setDescription(editingEvent.description || '');
@@ -44,10 +45,8 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
 
       if (attendeesList.length > 0) {
         setAuthor(attendeesList[0]);
-        setOtherAttendees(attendeesList.slice(1).join(', '));
       } else {
         setAuthor(savedName);
-        setOtherAttendees('');
       }
 
       let detLocation: LocationType = '딥스';
@@ -76,12 +75,29 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
         setHour('12시');
       }
     } else {
-      setTitle(''); setDate(selectedDate); setEndDate(selectedDate); setLocation('딥스');
+      setDate(selectedDate); setEndDate(selectedDate); setLocation('딥스');
       setIsAllDay(false); setSession('1부'); setHour('12시'); setDescription('');
       setAuthor(savedName);
-      setOtherAttendees('');
+      setIsTitleUserModified(false);
+
+      // 새 일정 초기 자동 제목 설정
+      const initialAuthor = savedName.trim() || '';
+      const initialTitle = initialAuthor
+        ? `${initialAuthor} / 딥스 / 1부`
+        : `딥스 / 1부`;
+      setTitle(initialTitle);
     }
   }, [editingEvent, selectedDate]);
+
+  // 작성자/장소/시간 변경 시 제목 자동 연결 ("작성자명 / 장소 / 시간")
+  useEffect(() => {
+    if (!editingEvent && !isTitleUserModified) {
+      const timeStr = isAllDay ? '하루종일' : (location === '딥스' || location === '파라' ? session : hour);
+      const nameStr = author.trim();
+      const autoTitle = nameStr ? `${nameStr} / ${location} / ${timeStr}` : `${location} / ${timeStr}`;
+      setTitle(autoTitle);
+    }
+  }, [author, location, session, hour, isAllDay, isTitleUserModified, editingEvent]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,15 +113,14 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
       localStorage.setItem('lastAttendeeName', trimmedAuthor);
     }
 
-    const otherList = otherAttendees
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean)
-      .filter(s => s !== trimmedAuthor);
-
-    const combinedAttendees = trimmedAuthor
-      ? [trimmedAuthor, ...otherList].join(', ')
-      : (otherList.join(', ') || null);
+    let combinedAttendees: string | null = null;
+    if (editingEvent && editingEvent.attendees) {
+      const existingList = editingEvent.attendees.split(',').map(s => s.trim()).filter(Boolean);
+      const rest = existingList.slice(1).filter(s => s !== trimmedAuthor);
+      combinedAttendees = trimmedAuthor ? [trimmedAuthor, ...rest].join(', ') : (rest.join(', ') || null);
+    } else {
+      combinedAttendees = trimmedAuthor || null;
+    }
 
     let finalStartTime: string | null = null;
     if (!isAllDay) {
@@ -156,7 +171,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
 
-          {/* Author */}
+          {/* 1. Author */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
               <User className="w-3.5 h-3.5 text-[#8B5CF6]" />작성자명 (첫 참석자로 자동 등록됩니다)
@@ -167,69 +182,11 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
               value={author}
               onChange={(e) => setAuthor(e.target.value)}
               className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition placeholder:text-[#94A3B8]"
-            />
-          </div>
-
-          {/* Title */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest">
-              일정 제목 *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="예: 딥스 1부늦입, 저녁 종로 술병 등"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition placeholder:text-[#94A3B8]"
               autoFocus
             />
           </div>
 
-          {/* Other Attendees */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
-              <Users className="w-3.5 h-3.5 text-[#64748B]" />추가 참석자 (선택, 쉼표로 구분)
-            </label>
-            <input
-              type="text"
-              placeholder="예: 김철수, 이영희"
-              value={otherAttendees}
-              onChange={(e) => setOtherAttendees(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition placeholder:text-[#94A3B8]"
-            />
-          </div>
-
-          {/* Location */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5" />장소 *
-            </label>
-            <div className="flex gap-1.5 flex-wrap">
-              {LOCATIONS.map((loc) => (
-                <button
-                  key={loc}
-                  type="button"
-                  onClick={() => {
-                    setLocation(loc);
-                    if (loc === '딥스' || loc === '파라') setSession('1부');
-                    else setHour('12시');
-                    if (loc !== '자유일정') {
-                      setEndDate(date);
-                    }
-                  }}
-                  className={`px-3.5 py-2 text-[11px] font-extrabold rounded-full border-2 transition cursor-pointer
-                    ${location === loc
-                      ? `${LOCATION_COLORS[loc].bg} text-white border-[#1E293B] shadow-pop-sm`
-                      : `bg-white text-[#64748B] border-[#CBD5E1] ${LOCATION_COLORS[loc].hoverBorder} ${LOCATION_COLORS[loc].hoverText}`}`}
-                >
-                  {loc}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Date Selection */}
+          {/* 2. Date Selection */}
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
@@ -267,7 +224,36 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
             )}
           </div>
 
-          {/* Time/Session */}
+          {/* 3. Location */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5" />장소 *
+            </label>
+            <div className="flex gap-1.5 flex-wrap">
+              {LOCATIONS.map((loc) => (
+                <button
+                  key={loc}
+                  type="button"
+                  onClick={() => {
+                    setLocation(loc);
+                    if (loc === '딥스' || loc === '파라') setSession('1부');
+                    else setHour('12시');
+                    if (loc !== '자유일정') {
+                      setEndDate(date);
+                    }
+                  }}
+                  className={`px-3.5 py-2 text-[11px] font-extrabold rounded-full border-2 transition cursor-pointer
+                    ${location === loc
+                      ? `${LOCATION_COLORS[loc].bg} text-white border-[#1E293B] shadow-pop-sm`
+                      : `bg-white text-[#64748B] border-[#CBD5E1] ${LOCATION_COLORS[loc].hoverBorder} ${LOCATION_COLORS[loc].hoverText}`}`}
+                >
+                  {loc}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 4. Time Selection */}
           {!isAllDay && (
             <div className="space-y-1.5">
               {location === '딥스' || location === '파라' ? (
@@ -327,7 +313,36 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
             </button>
           </div>
 
-          {/* Description */}
+          {/* 5. Title */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest">
+                일정 제목 *
+              </label>
+              {isTitleUserModified && !editingEvent && (
+                <button
+                  type="button"
+                  onClick={() => setIsTitleUserModified(false)}
+                  className="text-[10px] font-bold text-[#8B5CF6] hover:underline cursor-pointer"
+                >
+                  자동 제목으로 초기화
+                </button>
+              )}
+            </div>
+            <input
+              type="text"
+              required
+              placeholder="예: 범고래 / 딥스 / 1부"
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setIsTitleUserModified(true);
+              }}
+              className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition placeholder:text-[#94A3B8]"
+            />
+          </div>
+
+          {/* 6. Description */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
               <AlignLeft className="w-3.5 h-3.5" />메모
@@ -341,7 +356,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
             />
           </div>
 
-          {/* Action Buttons */}
+          {/* 7. Action Buttons */}
           <div className="flex items-center gap-2.5 pt-1">
             <button
               type="button"
