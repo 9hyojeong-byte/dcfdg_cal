@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, AlignLeft, Check, MapPin } from 'lucide-react';
+import { X, Calendar, Clock, AlignLeft, Check, MapPin, User, Users } from 'lucide-react';
 import { ScheduleEvent } from '../types';
 import { formatTime, normalizeToHourLabel } from '../lib/timeUtils';
 import { LOCATION_COLORS } from '../lib/locationColors';
@@ -17,6 +17,8 @@ const SESSIONS = ['1부', '2부', '3부', '4부', '5부'] as const;
 const HOURS = Array.from({ length: 24 }, (_, i) => `${i}시`);
 
 export default function EventForm({ selectedDate, editingEvent, onSave, onCancel }: EventFormProps) {
+  const [author, setAuthor] = useState('');
+  const [otherAttendees, setOtherAttendees] = useState('');
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -27,11 +29,26 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
   const [description, setDescription] = useState('');
 
   useEffect(() => {
+    // 저장되었던 작성자 또는 마지막 참석자 이름 가져오기
+    const savedName = localStorage.getItem('lastAuthorName') || localStorage.getItem('lastAttendeeName') || '';
+
     if (editingEvent) {
       setTitle(editingEvent.title);
       setDate(editingEvent.date);
       setEndDate(editingEvent.endDate || editingEvent.date);
       setDescription(editingEvent.description || '');
+
+      const attendeesList = editingEvent.attendees
+        ? editingEvent.attendees.split(',').map(s => s.trim()).filter(Boolean)
+        : [];
+
+      if (attendeesList.length > 0) {
+        setAuthor(attendeesList[0]);
+        setOtherAttendees(attendeesList.slice(1).join(', '));
+      } else {
+        setAuthor(savedName);
+        setOtherAttendees('');
+      }
 
       let detLocation: LocationType = '딥스';
       if (editingEvent.location && LOCATIONS.includes(editingEvent.location as any)) {
@@ -61,6 +78,8 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
     } else {
       setTitle(''); setDate(selectedDate); setEndDate(selectedDate); setLocation('딥스');
       setIsAllDay(false); setSession('1부'); setHour('12시'); setDescription('');
+      setAuthor(savedName);
+      setOtherAttendees('');
     }
   }, [editingEvent, selectedDate]);
 
@@ -71,6 +90,22 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
       alert('종료 날짜는 시작 날짜보다 빠를 수 없습니다.');
       return;
     }
+
+    const trimmedAuthor = author.trim();
+    if (trimmedAuthor) {
+      localStorage.setItem('lastAuthorName', trimmedAuthor);
+      localStorage.setItem('lastAttendeeName', trimmedAuthor);
+    }
+
+    const otherList = otherAttendees
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+      .filter(s => s !== trimmedAuthor);
+
+    const combinedAttendees = trimmedAuthor
+      ? [trimmedAuthor, ...otherList].join(', ')
+      : (otherList.join(', ') || null);
 
     let finalStartTime: string | null = null;
     if (!isAllDay) {
@@ -92,6 +127,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
       endTime: editingEvent ? editingEvent.endTime : null,
       description: description.trim() || null,
       location,
+      attendees: combinedAttendees,
     });
   };
 
@@ -120,6 +156,20 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
 
+          {/* Author */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
+              <User className="w-3.5 h-3.5 text-[#8B5CF6]" />작성자명 (첫 참석자로 자동 등록됩니다)
+            </label>
+            <input
+              type="text"
+              placeholder="예: 홍길동"
+              value={author}
+              onChange={(e) => setAuthor(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition placeholder:text-[#94A3B8]"
+            />
+          </div>
+
           {/* Title */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest">
@@ -133,6 +183,20 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition placeholder:text-[#94A3B8]"
               autoFocus
+            />
+          </div>
+
+          {/* Other Attendees */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
+              <Users className="w-3.5 h-3.5 text-[#64748B]" />추가 참석자 (선택, 쉼표로 구분)
+            </label>
+            <input
+              type="text"
+              placeholder="예: 김철수, 이영희"
+              value={otherAttendees}
+              onChange={(e) => setOtherAttendees(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition placeholder:text-[#94A3B8]"
             />
           </div>
 

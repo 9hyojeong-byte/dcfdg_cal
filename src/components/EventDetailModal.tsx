@@ -193,15 +193,19 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
               </div>
             ) : (
               <div className="flex flex-wrap gap-1.5 bg-white p-3 rounded-xl border-2 border-[#E2E8F0] min-h-12">
-                {attendees.map((name) => (
+                {attendees.map((name, index) => (
                   <button
                     key={name}
                     onClick={() => handleRemoveAttendee(name)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-violet-50 border-2 border-[#8B5CF6] text-violet-700 hover:bg-pink-50 hover:border-[#F472B6] hover:text-pink-700 rounded-full text-xs font-extrabold transition group cursor-pointer"
-                    title="참석 취소"
+                    className={`flex items-center gap-1 px-3 py-1.5 border-2 rounded-full text-xs font-extrabold transition group cursor-pointer ${
+                      index === 0
+                        ? 'bg-amber-50 border-[#FBBF24] text-amber-900 hover:bg-pink-50 hover:border-[#F472B6] hover:text-pink-700'
+                        : 'bg-violet-50 border-[#8B5CF6] text-violet-700 hover:bg-pink-50 hover:border-[#F472B6] hover:text-pink-700'
+                    }`}
+                    title={index === 0 ? '작성자 (클릭시 참석 취소)' : '참석 취소'}
                   >
-                    <span>{name}</span>
-                    <X className="w-3 h-3 text-violet-400 group-hover:text-pink-500 transition" strokeWidth={2.5} />
+                    <span>{index === 0 ? `👑 ${name} (작성자)` : name}</span>
+                    <X className="w-3 h-3 opacity-60 group-hover:opacity-100 transition" strokeWidth={2.5} />
                   </button>
                 ))}
               </div>

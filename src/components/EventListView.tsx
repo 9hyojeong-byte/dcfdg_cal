@@ -156,8 +156,17 @@ function EventCard({
             )}
             {ev.attendees && (
               <div className="mt-1.5 flex flex-wrap gap-1">
-                {ev.attendees.split(',').map(n => n.trim()).filter(Boolean).map(name => (
-                  <span key={name} className={`text-[9px] font-extrabold px-2 py-0.5 ${attendeeBg} ${attendeeText} rounded-full`}>{name}</span>
+                {ev.attendees.split(',').map(n => n.trim()).filter(Boolean).map((name, idx) => (
+                  <span
+                    key={name}
+                    className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
+                      idx === 0
+                        ? (isPast ? 'bg-amber-100 text-amber-800' : 'bg-amber-400 text-[#1E293B] border border-[#1E293B]')
+                        : `${attendeeBg} ${attendeeText}`
+                    }`}
+                  >
+                    {idx === 0 ? `👑 ${name}` : name}
+                  </span>
                 ))}
               </div>
             )}
