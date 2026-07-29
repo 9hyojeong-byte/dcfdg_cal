@@ -36,7 +36,7 @@ function onOpen() {
  */
 function initializeSheet() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const headers = ['ID', 'Title', 'Date', 'StartTime', 'EndTime', 'Description', 'CreatedAt', 'Location', 'Attendees', 'EndDate'];
+  const headers = ['ID', 'Title', 'Date', 'StartTime', 'EndTime', 'Description', 'CreatedAt', 'Location', 'Attendees', 'EndDate', 'DeepTankUsage'];
   
   // 첫 번째 행이 비어있으면 헤더 작성
   if (sheet.getLastRow() === 0) {
@@ -111,7 +111,7 @@ function doGet(e) {
                            .setMimeType(ContentService.MimeType.JSON);
     }
     
-    const lastCol = Math.max(sheet.getLastColumn(), 10);
+    const lastCol = Math.max(sheet.getLastColumn(), 11);
     const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
     const targetDate = e && e.parameter ? e.parameter.date : null; // YYYY-MM-DD 필터링 지원
     
@@ -143,7 +143,8 @@ function doGet(e) {
         createdAt: row[6],
         location: row[7] || null,
         attendees: row[8] || null,
-        endDate: endDateVal
+        endDate: endDateVal,
+        deepTankUsage: row[10] || null
       });
     }
     
@@ -164,7 +165,7 @@ function doPost(e) {
     
     // 1. 만약 action이 "sync" 이고 events 배열이 들어오는 경우 시트를 통째로 동기화
     if (postData.action === 'sync' && Array.isArray(postData.events)) {
-      const headers = ['ID', 'Title', 'Date', 'StartTime', 'EndTime', 'Description', 'CreatedAt', 'Location', 'Attendees', 'EndDate'];
+      const headers = ['ID', 'Title', 'Date', 'StartTime', 'EndTime', 'Description', 'CreatedAt', 'Location', 'Attendees', 'EndDate', 'DeepTankUsage'];
       
       // 기존 전체 데이터 클리어 후 새로 쓰기
       sheet.clearContents();
@@ -182,7 +183,8 @@ function doPost(e) {
             ev.createdAt || new Date().toISOString(),
             ev.location || '',
             ev.attendees || '',
-            ev.endDate || ''
+            ev.endDate || '',
+            ev.deepTankUsage || ''
           ];
         });
         sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
@@ -203,8 +205,9 @@ function doPost(e) {
     const attendees = postData.attendees || '';
     const createdAt = postData.createdAt || new Date().toISOString();
     const endDate = postData.endDate || '';
+    const deepTankUsage = postData.deepTankUsage || '';
     
-    sheet.appendRow([id, title, date, startTime, endTime, description, createdAt, location, attendees, endDate]);
+    sheet.appendRow([id, title, date, startTime, endTime, description, createdAt, location, attendees, endDate, deepTankUsage]);
     
     return ContentService.createTextOutput(JSON.stringify({ success: true, message: '일정이 추가되었습니다.' }))
                          .setMimeType(ContentService.MimeType.JSON);

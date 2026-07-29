@@ -94,6 +94,7 @@ function EventCard({
     const timeText = ev.startTime
       ? `${formatTime(ev.startTime)}${ev.endTime ? ` ~ ${formatTime(ev.endTime)}` : ''}`
       : '하루종일';
+    const deepTankText = ev.deepTankUsage ? `, 딥탱크: ${ev.deepTankUsage}` : '';
     const locationText = ev.location || '일반';
     const url = `${window.location.origin}${window.location.pathname}?scheduleId=${ev.id}`;
     
@@ -106,7 +107,7 @@ function EventCard({
 
     const textToCopy = `📅 [프다갤 벙 일정]
 • 제목: ${ev.title}
-• 일시: ${formattedDate} (${timeText})
+• 일시: ${formattedDate} (${timeText}${deepTankText})
 • 장소: ${locationText}
 • 메모: ${ev.description || '-'}
 • 참석자: ${attendeesText}
@@ -129,6 +130,11 @@ function EventCard({
           <div className={`${badgeBg} ${badgeText} border ${badgeBorder} py-2 px-2.5 rounded-xl text-center shrink-0 min-w-[68px] flex flex-col items-center gap-0.5`}>
             <p className="text-[11px] font-extrabold leading-none truncate max-w-[60px]">{ev.location || '일반'}</p>
             <p className="text-[11px] font-bold leading-none mt-1">{ev.startTime ? formatTime(ev.startTime) : '하루종일'}</p>
+            {ev.deepTankUsage && (
+              <span className="text-[9px] font-black text-[#0284C7] bg-sky-100 border border-sky-300 px-1 py-0.5 rounded-md leading-none mt-0.5">
+                {ev.deepTankUsage}
+              </span>
+            )}
             {ev.endTime && <p className="text-[9px] opacity-75 font-semibold leading-none">~{formatTime(ev.endTime)}</p>}
           </div>
           <div className="flex-1 min-w-0 self-center">

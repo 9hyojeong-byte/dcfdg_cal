@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, AlignLeft, Check, MapPin, User } from 'lucide-react';
+import { X, Calendar, Clock, AlignLeft, Check, MapPin, User, Waves } from 'lucide-react';
 import { ScheduleEvent } from '../types';
 import { formatTime, normalizeToHourLabel } from '../lib/timeUtils';
 import { LOCATION_COLORS } from '../lib/locationColors';
@@ -16,6 +16,37 @@ type LocationType = typeof LOCATIONS[number];
 const SESSIONS = ['1부', '2부', '3부', '4부', '5부'] as const;
 const HOURS = Array.from({ length: 24 }, (_, i) => `${i}시`);
 
+function buildAutoTitle(
+  authorName: string,
+  loc: string,
+  sess: string,
+  hr: string,
+  deepTank: string | null,
+  allDay: boolean
+): string {
+  const parts: string[] = [];
+  const trimmedAuthor = authorName.trim();
+  if (trimmedAuthor) {
+    parts.push(trimmedAuthor);
+  }
+  parts.push(loc);
+
+  const timeStr = allDay ? '하루종일' : (loc === '딥스' || loc === '파라' ? sess : hr);
+  parts.push(timeStr);
+
+  if (!allDay && (loc === '딥스' || loc === '파라') && deepTank) {
+    if (deepTank === '전반부이' || deepTank === '전반') {
+      parts.push('전반');
+      parts.push('빠입');
+    } else if (deepTank === '후반부이' || deepTank === '후반') {
+      parts.push('후반');
+      parts.push('늦입');
+    }
+  }
+
+  return parts.join('/');
+}
+
 export default function EventForm({ selectedDate, editingEvent, onSave, onCancel }: EventFormProps) {
   const [author, setAuthor] = useState('');
   const [title, setTitle] = useState('');
@@ -26,6 +57,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
   const [isAllDay, setIsAllDay] = useState(false);
   const [session, setSession] = useState('1부');
   const [hour, setHour] = useState('12시');
+  const [deepTankUsage, setDeepTankUsage] = useState<string | null>(null);
   const [description, setDescription] = useState('');
 
   useEffect(() => {
@@ -38,6 +70,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
       setDate(editingEvent.date);
       setEndDate(editingEvent.endDate || editingEvent.date);
       setDescription(editingEvent.description || '');
+      setDeepTankUsage(editingEvent.deepTankUsage || null);
 
       const attendeesList = editingEvent.attendees
         ? editingEvent.attendees.split(',').map(s => s.trim()).filter(Boolean)
@@ -76,28 +109,42 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
       }
     } else {
       setDate(selectedDate); setEndDate(selectedDate); setLocation('딥스');
-      setIsAllDay(false); setSession('1부'); setHour('12시'); setDescription('');
+      setIsAllDay(false); setSession('1부'); setHour('12시'); setDeepTankUsage(null); setDescription('');
       setAuthor(savedName);
       setIsTitleUserModified(false);
 
       // 새 일정 초기 자동 제목 설정
       const initialAuthor = savedName.trim() || '';
-      const initialTitle = initialAuthor
-        ? `${initialAuthor} / 딥스 / 1부`
-        : `딥스 / 1부`;
+      const initialTitle = buildAutoTitle(initialAuthor, '딥스', '1부', '12시', null, false);
       setTitle(initialTitle);
     }
   }, [editingEvent, selectedDate]);
 
-  // 작성자/장소/시간 변경 시 제목 자동 연결 ("작성자명 / 장소 / 시간")
+  const handleDeepTankClick = (option: string) => {
+    if (deepTankUsage === option) {
+      setDeepTankUsage(null);
+      if (description === '30분 빠른입장' || description === '30분 늦은입장') {
+        setDescription('');
+      }
+    } else {
+      setDeepTankUsage(option);
+      if (!description.trim() || description === '30분 빠른입장' || description === '30분 늦은입장') {
+        if (option === '전반부이') {
+          setDescription('30분 빠른입장');
+        } else if (option === '후반부이') {
+          setDescription('30분 늦은입장');
+        }
+      }
+    }
+  };
+
+  // 작성자/장소/시간/딥탱크 이용시간 변경 시 제목 자동 연결 ("작성자명/장소/시간/전반/빠입")
   useEffect(() => {
     if (!editingEvent && !isTitleUserModified) {
-      const timeStr = isAllDay ? '하루종일' : (location === '딥스' || location === '파라' ? session : hour);
-      const nameStr = author.trim();
-      const autoTitle = nameStr ? `${nameStr} / ${location} / ${timeStr}` : `${location} / ${timeStr}`;
+      const autoTitle = buildAutoTitle(author, location, session, hour, deepTankUsage, isAllDay);
       setTitle(autoTitle);
     }
-  }, [author, location, session, hour, isAllDay, isTitleUserModified, editingEvent]);
+  }, [author, location, session, hour, deepTankUsage, isAllDay, isTitleUserModified, editingEvent]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,6 +187,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
       endDate: endDate && endDate !== date ? endDate : null,
       startTime: finalStartTime,
       endTime: editingEvent ? editingEvent.endTime : null,
+      deepTankUsage: (location === '딥스' || location === '파라') ? (deepTankUsage || null) : null,
       description: description.trim() || null,
       location,
       attendees: combinedAttendees,
@@ -236,8 +284,15 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
                   type="button"
                   onClick={() => {
                     setLocation(loc);
-                    if (loc === '딥스' || loc === '파라') setSession('1부');
-                    else setHour('12시');
+                    if (loc === '딥스' || loc === '파라') {
+                      setSession('1부');
+                    } else {
+                      setHour('12시');
+                      setDeepTankUsage(null); // 성남, 수원, 자유일정 선택 시 딥탱크 사용시간 초기화
+                      if (description === '30분 빠른입장' || description === '30분 늦은입장') {
+                        setDescription('');
+                      }
+                    }
                     if (loc !== '자유일정') {
                       setEndDate(date);
                     }
@@ -255,43 +310,82 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
 
           {/* 4. Time Selection */}
           {!isAllDay && (
-            <div className="space-y-1.5">
-              {location === '딥스' || location === '파라' ? (
-                <>
-                  <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest">
-                    시간 (부 선택) *
-                  </label>
-                  <div className="flex gap-1.5">
-                    {SESSIONS.map((sess) => (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                {location === '딥스' || location === '파라' ? (
+                  <>
+                    <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest">
+                      시간 (부 선택) *
+                    </label>
+                    <div className="flex gap-1.5">
+                      {SESSIONS.map((sess) => (
+                        <button
+                          key={sess}
+                          type="button"
+                          onClick={() => setSession(sess)}
+                          className={`flex-1 py-2.5 text-xs font-extrabold rounded-full border-2 transition cursor-pointer
+                            ${session === sess
+                              ? 'bg-[#FBBF24] text-[#1E293B] border-[#1E293B] shadow-pop-sm'
+                              : 'bg-white text-[#64748B] border-[#CBD5E1] hover:border-[#FBBF24]'}`}
+                        >
+                          {sess}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest">
+                      시간 (정각 단위) *
+                    </label>
+                    <select
+                      value={hour}
+                      onChange={(e) => setHour(e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition appearance-none cursor-pointer"
+                    >
+                      {HOURS.map((h) => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+              </div>
+
+              {/* 딥탱크 이용시간 (전반부이 / 후반부이) - 딥스 또는 파라 일때만 표시 */}
+              {(location === '딥스' || location === '파라') && (
+                <div className="space-y-1.5 bg-sky-50/60 p-3 rounded-2xl border-2 border-sky-200 animate-fade-in">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-extrabold text-sky-900 uppercase tracking-widest flex items-center gap-1">
+                      <Waves className="w-3.5 h-3.5 text-[#38BDF8]" strokeWidth={2.5} />
+                      딥탱크 이용시간
+                    </label>
+                    {deepTankUsage && (
                       <button
-                        key={sess}
                         type="button"
-                        onClick={() => setSession(sess)}
-                        className={`flex-1 py-2.5 text-xs font-extrabold rounded-full border-2 transition cursor-pointer
-                          ${session === sess
-                            ? 'bg-[#FBBF24] text-[#1E293B] border-[#1E293B] shadow-pop-sm'
-                            : 'bg-white text-[#64748B] border-[#CBD5E1] hover:border-[#FBBF24]'}`}
+                        onClick={() => handleDeepTankClick(deepTankUsage)}
+                        className="text-[10px] font-bold text-sky-700 hover:underline cursor-pointer"
                       >
-                        {sess}
+                        선택 해제
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {['전반부이', '후반부이'].map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => handleDeepTankClick(option)}
+                        className={`flex-1 py-2 text-xs font-extrabold rounded-xl border-2 transition cursor-pointer flex items-center justify-center gap-1
+                          ${deepTankUsage === option
+                            ? 'bg-[#38BDF8] text-[#1E293B] border-[#1E293B] shadow-pop-sm font-black'
+                            : 'bg-white text-[#64748B] border-[#CBD5E1] hover:border-[#38BDF8]'}`}
+                      >
+                        <span>{option}</span>
+                        {deepTankUsage === option && <Check className="w-3.5 h-3.5 text-[#1E293B]" strokeWidth={3} />}
                       </button>
                     ))}
                   </div>
-                </>
-              ) : (
-                <>
-                  <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest">
-                    시간 (정각 단위) *
-                  </label>
-                  <select
-                    value={hour}
-                    onChange={(e) => setHour(e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition appearance-none cursor-pointer"
-                  >
-                    {HOURS.map((h) => (
-                      <option key={h} value={h}>{h}</option>
-                    ))}
-                  </select>
-                </>
+                </div>
               )}
             </div>
           )}
@@ -332,7 +426,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
             <input
               type="text"
               required
-              placeholder="예: 범고래 / 딥스 / 1부"
+              placeholder="예: 범고래/수원/3시 또는 범고래/딥스/1부/전반/빠입"
               value={title}
               onChange={(e) => {
                 setTitle(e.target.value);

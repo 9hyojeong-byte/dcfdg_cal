@@ -9,9 +9,11 @@ export interface ScheduleEvent {
   createdAt: string;
   location?: string | null; // Location (딥스, 성남, 파라, 수원, 자유일정)
   attendees?: string | null; // Comma-separated or similar string of attendee names
+  deepTankUsage?: string | null; // 딥탱크 이용시간: "전반부이", "후반부이" 등
 }
 
 export interface GoogleSheetConfig {
   spreadsheetId: string;
   sheetName: string;
 }
+

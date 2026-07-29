@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, MapPin, AlignLeft, Users, UserPlus, Sparkles, Link } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, AlignLeft, Users, UserPlus, Sparkles, Link, Waves } from 'lucide-react';
 import { ScheduleEvent } from '../types';
 import { formatTime } from '../lib/timeUtils';
 
@@ -21,6 +21,7 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
     const timeText = event.startTime
       ? `${formatTime(event.startTime)}${event.endTime ? ` ~ ${formatTime(event.endTime)}` : ''}`
       : '하루종일';
+    const deepTankText = event.deepTankUsage ? `, 딥탱크: ${event.deepTankUsage}` : '';
     const locationText = event.location || '일반';
     const url = `${window.location.origin}${window.location.pathname}?scheduleId=${event.id}`;
     
@@ -33,7 +34,7 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
 
     const textToCopy = `📅 [프다갤 벙 일정]
 • 제목: ${event.title}
-• 일시: ${formattedDate} (${timeText})
+• 일시: ${formattedDate} (${timeText}${deepTankText})
 • 장소: ${locationText}
 • 메모: ${event.description || '-'}
 • 참석자: ${attendeesText}
@@ -154,6 +155,12 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
                     : '하루종일'}
                 </span>
               </div>
+              {event.deepTankUsage && (
+                <div className="flex items-center gap-1.5 bg-sky-50 px-3 py-1.5 rounded-full border border-sky-200 text-xs font-extrabold text-sky-800">
+                  <Waves className="w-3.5 h-3.5 text-[#38BDF8]" strokeWidth={2.5} />
+                  <span>딥탱크 {event.deepTankUsage}</span>
+                </div>
+              )}
               {event.location && (
                 <div className="flex items-center gap-1.5 bg-violet-50 px-3 py-1.5 rounded-full border border-violet-100 text-xs font-bold text-violet-700">
                   <MapPin className="w-3.5 h-3.5 text-violet-400" strokeWidth={2} />
