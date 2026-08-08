@@ -208,6 +208,9 @@ export default function App() {
 
   const handleSearch = () => {
     setSearchQuery(searchVal);
+    if (searchVal.trim()) {
+      localStorage.setItem('lastSearchAttendee', searchVal.trim());
+    }
   };
 
   const handleClearSearch = () => {
@@ -268,7 +271,10 @@ export default function App() {
                 onClick={() => {
                   const nextSearchOpen = !isSearchOpen;
                   setIsSearchOpen(nextSearchOpen);
-                  if (!nextSearchOpen) {
+                  if (nextSearchOpen) {
+                    const lastSearch = localStorage.getItem('lastSearchAttendee') || '';
+                    setSearchVal(lastSearch);
+                  } else {
                     handleClearSearch();
                   }
                 }}
