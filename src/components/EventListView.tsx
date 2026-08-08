@@ -12,6 +12,7 @@ interface EventListViewProps {
   onAddEventClick: () => void;
   onEventClick: (event: ScheduleEvent) => void;
   onSelectDate: (dateStr: string) => void;
+  searchQuery?: string;
 }
 
 const stickerColors = [
@@ -39,6 +40,21 @@ const formatKoreanDate = (dateStr: string, includeDayOfWeek: boolean = false) =>
     const formatted = `${month + 1}월 ${day}일`;
     return includeDayOfWeek ? `${formatted} (${dayOfWeek})` : formatted;
   } catch { return dateStr; }
+};
+
+const formatBadgeDate = (dateStr: string) => {
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    const date = new Date(parseInt(parts[0], 10), month - 1, day);
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const dayOfWeek = dayNames[date.getDay()];
+    return `${month}/${day} (${dayOfWeek})`;
+  } catch {
+    return dateStr;
+  }
 };
 
 const isNewSchedule = (createdAt: string): boolean => {
@@ -127,23 +143,17 @@ function EventCard({
     <>
       <div className={`${cardBg} rounded-2xl border-2 ${cardBorder} ${cardShadow} flex items-start gap-3 p-3.5`}>
         <div onClick={() => onEventClick(ev)} className="flex-1 flex items-start gap-3 cursor-pointer min-w-0">
-          <div className={`${badgeBg} ${badgeText} border ${badgeBorder} py-2 px-2.5 rounded-xl text-center shrink-0 min-w-[68px] flex flex-col items-center gap-0.5`}>
-            <p className="text-[11px] font-extrabold leading-none truncate max-w-[60px]">{ev.location || '일반'}</p>
-            <p className="text-[11px] font-bold leading-none mt-1">{ev.startTime ? formatTime(ev.startTime) : '하루종일'}</p>
-            {ev.deepTankUsage && (
-              <span className="text-[9px] font-black text-[#0284C7] bg-sky-100 border border-sky-300 px-1 py-0.5 rounded-md leading-none mt-0.5">
-                {ev.deepTankUsage}
-              </span>
-            )}
-            {ev.endTime && <p className="text-[9px] opacity-75 font-semibold leading-none">~{formatTime(ev.endTime)}</p>}
+          <div className={`${badgeBg} ${badgeText} border ${badgeBorder} py-2 px-1.5 rounded-xl text-center shrink-0 min-w-[84px] flex flex-col items-center justify-center gap-1`}>
+            <p className="text-[11px] font-extrabold leading-none opacity-85 whitespace-nowrap">{formatBadgeDate(ev.date)}</p>
+            <p className="text-[11px] font-black leading-none truncate max-w-[76px]">{ev.location || '일반'}</p>
+            <p className="text-[11px] font-bold leading-none opacity-85">
+              {ev.location && ev.location.trim().includes('자유일정')
+                ? '하루종일'
+                : (ev.startTime ? formatTime(ev.startTime) : '하루종일')}
+            </p>
           </div>
           <div className="flex-1 min-w-0 self-center">
             <div className="flex flex-col items-start gap-1">
-              {showDate && (
-                <span className={`text-[10px] font-extrabold ${dateBadgeText} ${dateBadgeBg} border ${dateBadgeBorder} px-1.5 py-0.5 rounded-md shrink-0`}>
-                  {formatKoreanDate(ev.date, true)}{ev.endDate ? ` ~ ${formatKoreanDate(ev.endDate, true)}` : ''}
-                </span>
-              )}
               <div className="flex-1 min-w-0">
                 <span className={`text-sm font-extrabold ${titleText} leading-snug break-all align-middle mr-1.5`}>
                   {ev.title}
@@ -216,6 +226,7 @@ export default function EventListView({
   onAddEventClick,
   onEventClick,
   onSelectDate,
+  searchQuery,
 }: EventListViewProps) {
   const [menuEvent, setMenuEvent] = useState<ScheduleEvent | null>(null);
 
@@ -257,16 +268,42 @@ export default function EventListView({
       });
   } else {
     isFiltered = false;
-    displayEvents = [...events].sort((a, b) => {
-      // 날짜 기준 역순(내림차순) 정렬
-      const dateCompare = b.date.localeCompare(a.date);
-      if (dateCompare !== 0) return dateCompare;
+    if (searchQuery && searchQuery.trim()) {
+      // 검색 시에는 과거 일정도 포함하여 출력
+      const todayOrFutureEvents = events.filter(e => !isPastDate(e.endDate || e.date));
+      const pastEvents = events.filter(e => isPastDate(e.endDate || e.date));
 
-      // 날짜가 같으면 시작 시간 기준 오름차순 정렬
-      if (!a.startTime) return -1;
-      if (!b.startTime) return 1;
-      return a.startTime.localeCompare(b.startTime);
-    });
+      // 오늘~미래 일정은 날짜 이른 순(오름차순) 정렬
+      todayOrFutureEvents.sort((a, b) => {
+        const dateCompare = a.date.localeCompare(b.date);
+        if (dateCompare !== 0) return dateCompare;
+        if (!a.startTime) return -1;
+        if (!b.startTime) return 1;
+        return a.startTime.localeCompare(b.startTime);
+      });
+
+      // 과거 일정은 최근 날짜 순(내림차순) 정렬
+      pastEvents.sort((a, b) => {
+        const dateCompare = b.date.localeCompare(a.date);
+        if (dateCompare !== 0) return dateCompare;
+        if (!a.startTime) return -1;
+        if (!b.startTime) return 1;
+        return a.startTime.localeCompare(b.startTime);
+      });
+
+      displayEvents = [...todayOrFutureEvents, ...pastEvents];
+    } else {
+      // 일반 전체 보기 시에는 과거 일정을 제외하고 날짜 이른 순(오름차순) 정렬
+      displayEvents = events
+        .filter(e => !isPastDate(e.endDate || e.date))
+        .sort((a, b) => {
+          const dateCompare = a.date.localeCompare(b.date);
+          if (dateCompare !== 0) return dateCompare;
+          if (!a.startTime) return -1;
+          if (!b.startTime) return 1;
+          return a.startTime.localeCompare(b.startTime);
+        });
+    }
   }
 
   return (
@@ -300,7 +337,7 @@ export default function EventListView({
 
       {/* ── 리스트 영역 ── */}
       {displayEvents.length === 0 ? (
-        <EmptyState />
+        <EmptyState isSearch={!!searchQuery} />
       ) : (
         <div className="space-y-3">
           {displayEvents.map((ev, idx) => (
@@ -371,7 +408,7 @@ export default function EventListView({
   );
 }
 
-function EmptyState() {
+function EmptyState({ isSearch }: { isSearch?: boolean }) {
   return (
     <div className="text-center py-10 bg-white rounded-2xl border-2 border-[#1E293B] shadow-pop flex flex-col items-center gap-3">
       <div className="relative w-16 h-16">
@@ -382,8 +419,12 @@ function EmptyState() {
         <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#FBBF24] border-2 border-[#1E293B]" />
       </div>
       <div>
-        <p className="text-sm font-extrabold text-[#1E293B]">등록된 일정이 없어요</p>
-        <p className="text-xs text-[#64748B] mt-1 font-medium">직접 추가하거나 스크린샷을 스캔해보세요!</p>
+        <p className="text-sm font-extrabold text-[#1E293B]">
+          {isSearch ? '검색 결과가 없어요' : '등록된 일정이 없어요'}
+        </p>
+        <p className="text-xs text-[#64748B] mt-1 font-medium">
+          {isSearch ? '다른 이름으로 검색해보세요!' : '직접 추가하거나 스크린샷을 스캔해보세요!'}
+        </p>
       </div>
     </div>
   );

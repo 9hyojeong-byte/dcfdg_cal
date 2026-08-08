@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Sparkles, Plus, CheckCircle2, ShieldAlert, X, Zap, Download } from 'lucide-react';
+import { Sparkles, Plus, CheckCircle2, ShieldAlert, X, Zap, Download, Search } from 'lucide-react';
 import { ScheduleEvent } from './types';
 import CalendarView from './components/CalendarView';
 import EventListView from './components/EventListView';
@@ -18,6 +18,10 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [currentCalendarDate, setCurrentCalendarDate] = useState<Date>(new Date());
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchVal, setSearchVal] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<ScheduleEvent | null>(null);
@@ -202,9 +206,27 @@ export default function App() {
     });
   };
 
-  const filteredEvents = selectedLocation
-    ? events.filter(e => !isEventDeleted(e) && e.location && e.location.trim().includes(selectedLocation))
-    : events.filter(e => !isEventDeleted(e));
+  const handleSearch = () => {
+    setSearchQuery(searchVal);
+  };
+
+  const handleClearSearch = () => {
+    setSearchVal('');
+    setSearchQuery('');
+  };
+
+  const filteredEvents = events.filter(e => {
+    if (isEventDeleted(e)) return false;
+    if (selectedLocation && (!e.location || !e.location.trim().includes(selectedLocation))) {
+      return false;
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      const atts = e.attendees ? e.attendees.toLowerCase() : '';
+      if (!atts.includes(q)) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-[#FFFDF5] dot-grid flex justify-center py-0 sm:py-10 relative overflow-hidden">
@@ -240,33 +262,85 @@ export default function App() {
               </h1>
             </div>
 
-            {/* 다운로드(설치) 버튼 */}
-            {canInstall ? (
+            <div className="flex items-center gap-2">
+              {/* Search Toggle Button */}
               <button
-                onClick={handleInstall}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white text-[10px] font-bold bg-[#FBBF24] text-[#1E293B] shadow-pop-sm btn-candy cursor-pointer"
+                onClick={() => {
+                  const nextSearchOpen = !isSearchOpen;
+                  setIsSearchOpen(nextSearchOpen);
+                  if (!nextSearchOpen) {
+                    handleClearSearch();
+                  }
+                }}
+                className={`w-8 h-8 rounded-full border-2 border-white flex items-center justify-center cursor-pointer hover:bg-white/20 transition shadow-pop-sm text-white ${
+                  isSearchOpen ? 'bg-white/30' : 'bg-transparent'
+                }`}
+                title="참석자 검색"
               >
-                <Download className="w-3 h-3" strokeWidth={2.5} />
-                <span>다운로드</span>
+                <Search className="w-4 h-4" strokeWidth={2.5} />
               </button>
-            ) : (
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white/40 text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm
-                ${syncStatus === 'error'
-                  ? 'bg-red-500/80 text-white'
-                  : syncStatus === 'syncing'
-                    ? 'bg-[#FBBF24]/90 text-[#1E293B]'
-                    : 'bg-white/20 text-white'}`}>
-                {syncStatus === 'error'
-                  ? <ShieldAlert className="w-3 h-3" strokeWidth={2.5} />
-                  : syncStatus === 'syncing'
-                    ? <span className="animate-spin inline-block">⟳</span>
-                    : <CheckCircle2 className="w-3 h-3" strokeWidth={2.5} />}
-                <span>
-                  {syncStatus === 'syncing' ? 'Sync...' : syncStatus === 'error' ? 'Error' : 'Live'}
-                </span>
-              </div>
-            )}
+
+              {/* 다운로드(설치) 버튼 */}
+              {canInstall ? (
+                <button
+                  onClick={handleInstall}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white text-[10px] font-bold bg-[#FBBF24] text-[#1E293B] shadow-pop-sm btn-candy cursor-pointer"
+                >
+                  <Download className="w-3 h-3" strokeWidth={2.5} />
+                  <span>다운로드</span>
+                </button>
+              ) : (
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white/40 text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm
+                  ${syncStatus === 'error'
+                    ? 'bg-red-500/80 text-white'
+                    : syncStatus === 'syncing'
+                      ? 'bg-[#FBBF24]/90 text-[#1E293B]'
+                      : 'bg-white/20 text-white'}`}>
+                  {syncStatus === 'error'
+                    ? <ShieldAlert className="w-3 h-3" strokeWidth={2.5} />
+                    : syncStatus === 'syncing'
+                      ? <span className="animate-spin inline-block">⟳</span>
+                      : <CheckCircle2 className="w-3 h-3" strokeWidth={2.5} />}
+                  <span>
+                    {syncStatus === 'syncing' ? 'Sync...' : syncStatus === 'error' ? 'Error' : 'Live'}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* ── Search Input Row ── */}
+          {isSearchOpen && (
+            <div className="relative mt-4 flex gap-2 animate-pop-in">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={searchVal}
+                  onChange={(e) => setSearchVal(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSearch();
+                  }}
+                  placeholder="참석자 이름 검색..."
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl border-2 border-[#1E293B] bg-white text-xs font-bold text-[#1E293B] shadow-pop-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                />
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 transform -translate-y-1/2" />
+              </div>
+              <button
+                onClick={handleSearch}
+                className="px-4 py-1.5 rounded-xl border-2 border-[#1E293B] bg-[#FBBF24] text-[#1E293B] text-xs font-extrabold shadow-pop-sm btn-candy cursor-pointer"
+              >
+                검색
+              </button>
+              {searchQuery && (
+                <button
+                  onClick={handleClearSearch}
+                  className="px-3 py-1.5 rounded-xl border-2 border-[#1E293B] bg-red-500 text-white text-xs font-extrabold shadow-pop-sm btn-candy cursor-pointer"
+                >
+                  초기화
+                </button>
+              )}
+            </div>
+          )}
         </header>
 
         {/* ── Scrollable Content ── */}
@@ -297,6 +371,7 @@ export default function App() {
             onAddEventClick={() => { setEditingEvent(null); setIsFormOpen(true); }}
             onEventClick={handleOpenEventDetail}
             onSelectDate={setSelectedDate}
+            searchQuery={searchQuery}
           />
         </main>
 
