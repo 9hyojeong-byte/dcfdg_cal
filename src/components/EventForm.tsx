@@ -181,7 +181,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
 
     onSave({
       ...editingEvent,
-      id: editingEvent?.id || `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: editingEvent?.id || crypto.randomUUID(),
       title: title.trim(),
       date,
       endDate: endDate && endDate !== date ? endDate : null,

@@ -11,70 +11,7 @@ const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzH90Y8yZxrAyvmpp_O5W0ZGB0ff1wGJhDbwLbHswhPP3EtXHOYCz689a8OUSezMT7WgQ/exec";
-
-// 1. GET Schedules from Google Apps Script Web App
-app.get("/api/schedules", async (req, res) => {
-  try {
-    const gasRes = await fetch(GAS_URL, {
-      method: "GET",
-      headers: { "Accept": "application/json" }
-    });
-
-    if (!gasRes.ok) {
-      throw new Error(`Google Apps Script returned status ${gasRes.status}`);
-    }
-
-    const data: any = await gasRes.json();
-    if (data && data.success) {
-      res.json({ success: true, events: data.events || [] });
-    } else {
-      res.status(500).json({ error: (data && data.error) || "Apps Script에서 일정을 가져오지 못했습니다." });
-    }
-  } catch (error: any) {
-    console.error("Failed to fetch schedules from GAS:", error);
-    res.status(500).json({ error: `구글 스프레드시트 일정 동기화 실패: ${error.message}` });
-  }
-});
-
-// 2. POST (Sync) Schedules to Google Apps Script Web App
-app.post("/api/schedules", async (req, res) => {
-  try {
-    const { events } = req.body;
-    console.log("Syncing events to GAS. Count:", events?.length);
-    if (events && events.length > 0) {
-      console.log("Sample event being synced:", JSON.stringify(events[0]));
-    }
-
-    const gasRes = await fetch(GAS_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify({
-        action: "sync",
-        events: events || []
-      })
-    });
-
-    if (!gasRes.ok) {
-      throw new Error(`Google Apps Script returned status ${gasRes.status}`);
-    }
-
-    const data: any = await gasRes.json();
-    if (data && data.success) {
-      res.json({ success: true, message: data.message });
-    } else {
-      res.status(500).json({ error: (data && data.error) || "Apps Script 동기화에 실패했습니다." });
-    }
-  } catch (error: any) {
-    console.error("Failed to sync schedules to GAS:", error);
-    res.status(500).json({ error: `구글 스프레드시트 일정 업로드 실패: ${error.message}` });
-  }
-});
-
-// 3. AI Screenshot Image Analysis Endpoint
+// 1. AI Screenshot Image Analysis Endpoint
 app.post("/api/analyze-screenshot", async (req, res) => {
   const { imageBase64, mimeType } = req.body;
 
@@ -191,7 +128,7 @@ app.post("/api/analyze-screenshot", async (req, res) => {
   }
 });
 
-// 4. Vite Dev Server Integrations / Static Production Assets
+// 2. Vite Dev Server Integrations / Static Production Assets
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

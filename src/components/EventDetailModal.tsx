@@ -232,7 +232,7 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
                 placeholder="이름 입력 (예: 길동)"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddAttendee(newName); }}}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); handleAddAttendee(newName); }}}
                 className="flex-1 px-3 py-2.5 border-2 border-[#CBD5E1] bg-white rounded-full text-xs font-bold text-[#1E293B] input-geo transition placeholder:text-[#94A3B8]"
               />
               <button

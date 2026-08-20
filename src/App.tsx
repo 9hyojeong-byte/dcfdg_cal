@@ -6,7 +6,7 @@ import EventListView from './components/EventListView';
 import EventForm from './components/EventForm';
 import ImageUploader from './components/ImageUploader';
 import EventDetailModal from './components/EventDetailModal';
-import { fetchSchedules, saveSchedules } from './lib/gasApi';
+import { fetchSchedules, saveSchedules } from './lib/supabaseApi';
 
 function isEventDeleted(event: ScheduleEvent): boolean {
   if (!event.attendees) return false;
@@ -177,8 +177,8 @@ export default function App() {
   };
 
   const handleImportParsedEvents = async (imported: Omit<ScheduleEvent, 'id' | 'createdAt'>[]) => {
-    const newEvents: ScheduleEvent[] = imported.map((item, idx) => ({
-      id: `ai-${Date.now()}-${idx}`,
+    const newEvents: ScheduleEvent[] = imported.map((item) => ({
+      id: crypto.randomUUID(),
       title: item.title,
       date: item.date,
       startTime: item.startTime,
@@ -324,7 +324,7 @@ export default function App() {
                   value={searchVal}
                   onChange={(e) => setSearchVal(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSearch();
+                    if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSearch();
                   }}
                   placeholder="참석자 이름 검색..."
                   className="w-full pl-8 pr-3 py-1.5 rounded-xl border-2 border-[#1E293B] bg-white text-xs font-bold text-[#1E293B] shadow-pop-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
