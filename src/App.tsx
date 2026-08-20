@@ -13,6 +13,20 @@ function isEventDeleted(event: ScheduleEvent): boolean {
   return event.attendees.split(',').map(n => n.trim()).includes('삭제됨');
 }
 
+function isIOSDevice(): boolean {
+  const ua = window.navigator.userAgent;
+  if (/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream) return true;
+  // iPadOS 13+ reports itself as "Macintosh" but exposes multi-touch
+  return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+}
+
+function isRunningStandalone(): boolean {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true
+  );
+}
+
 export default function App() {
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -34,6 +48,7 @@ export default function App() {
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
   const installPromptRef = useRef<any>(null);
   const [canInstall, setCanInstall] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const initialDeepLinkChecked = useRef(false);
@@ -58,16 +73,33 @@ export default function App() {
   };
 
   useEffect(() => {
+    setIsStandalone(isRunningStandalone());
+
     const handler = (e: any) => {
       e.preventDefault();
       installPromptRef.current = e;
       setCanInstall(true);
     };
     window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+
+    const onInstalled = () => {
+      installPromptRef.current = null;
+      setCanInstall(false);
+      setIsStandalone(true);
+    };
+    window.addEventListener('appinstalled', onInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
   }, []);
 
   const handleInstall = async () => {
+    if (isIOSDevice()) {
+      alert('홈 화면에 추가하기\n\n하단(또는 상단)의 공유 버튼을 누른 뒤 "홈 화면에 추가"를 선택해주세요.');
+      return;
+    }
     if (!installPromptRef.current) return;
     installPromptRef.current.prompt();
     const { outcome } = await installPromptRef.current.userChoice;
@@ -76,6 +108,8 @@ export default function App() {
       setCanInstall(false);
     }
   };
+
+  const showInstallButton = !isStandalone && (canInstall || isIOSDevice());
 
   useEffect(() => {
     if (syncStatus === 'syncing') {
@@ -287,7 +321,7 @@ export default function App() {
               </button>
 
               {/* 다운로드(설치) 버튼 */}
-              {canInstall ? (
+              {showInstallButton ? (
                 <button
                   onClick={handleInstall}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white text-[10px] font-bold bg-[#FBBF24] text-[#1E293B] shadow-pop-sm btn-candy cursor-pointer"
