@@ -88,7 +88,9 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
       }
       setLocation(detLocation);
 
-      const isDayAll = !editingEvent.startTime;
+      // '자유일정'은 특정 시각이 의미 없는 타입이라, 저장된 시각 데이터가
+      // 남아있어도 무시하고 항상 하루 종일로 로드한다.
+      const isDayAll = detLocation === '자유일정' || !editingEvent.startTime;
       setIsAllDay(isDayAll);
       if (!isDayAll && editingEvent.startTime) {
         const raw = editingEvent.startTime;
@@ -281,6 +283,9 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
                   key={loc}
                   type="button"
                   onClick={() => {
+                    const isEnteringFreeSchedule = loc === '자유일정' && location !== '자유일정';
+                    const isLeavingFreeSchedule = loc !== '자유일정' && location === '자유일정';
+
                     setLocation(loc);
                     if (loc === '딥스' || loc === '파라') {
                       setSession('1부');
@@ -293,6 +298,14 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
                     }
                     if (loc !== '자유일정') {
                       setEndDate(date);
+                    }
+
+                    // '자유일정'은 특정 시각이 의미 없는 타입이라 항상 하루 종일로 고정,
+                    // 다른 타입으로 되돌아가면 다시 시각을 고를 수 있도록 되돌린다.
+                    if (isEnteringFreeSchedule) {
+                      setIsAllDay(true);
+                    } else if (isLeavingFreeSchedule) {
+                      setIsAllDay(false);
                     }
                   }}
                   className={`px-3.5 py-2 text-[11px] font-extrabold rounded-full border-2 transition cursor-pointer
@@ -388,22 +401,24 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
             </div>
           )}
 
-          {/* All Day Toggle */}
-          <div className="flex items-center justify-between py-3 px-4 bg-white rounded-xl border-2 border-[#E2E8F0]">
-            <span className="text-xs font-bold text-[#1E293B] flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-[#64748B]" strokeWidth={2} />
-              하루 종일 진행
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsAllDay(!isAllDay)}
-              className={`w-12 h-6 rounded-full border-2 border-[#1E293B] relative flex items-center transition-colors cursor-pointer
-                ${isAllDay ? 'bg-[#8B5CF6]' : 'bg-[#E2E8F0]'}`}
-            >
-              <span className={`w-4 h-4 rounded-full bg-white border border-[#1E293B] shadow-sm transition-transform absolute
-                ${isAllDay ? 'translate-x-6' : 'translate-x-1'}`} />
-            </button>
-          </div>
+          {/* All Day Toggle (자유일정은 항상 하루 종일이라 토글 자체를 숨김) */}
+          {location !== '자유일정' && (
+            <div className="flex items-center justify-between py-3 px-4 bg-white rounded-xl border-2 border-[#E2E8F0]">
+              <span className="text-xs font-bold text-[#1E293B] flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-[#64748B]" strokeWidth={2} />
+                하루 종일 진행
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsAllDay(!isAllDay)}
+                className={`w-12 h-6 rounded-full border-2 border-[#1E293B] relative flex items-center transition-colors cursor-pointer
+                  ${isAllDay ? 'bg-[#8B5CF6]' : 'bg-[#E2E8F0]'}`}
+              >
+                <span className={`w-4 h-4 rounded-full bg-white border border-[#1E293B] shadow-sm transition-transform absolute
+                  ${isAllDay ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+          )}
 
           {/* 5. Title */}
           <div className="space-y-1.5">
