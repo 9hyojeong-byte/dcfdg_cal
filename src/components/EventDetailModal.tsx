@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, MapPin, AlignLeft, Users, UserPlus, Sparkles, Link, Waves } from 'lucide-react';
 import { ScheduleEvent } from '../types';
 import { formatTime } from '../lib/timeUtils';
+import { getAttendeesList, getAuthorName, getDisplayAttendeesList } from '../lib/authors';
 
 interface EventDetailModalProps {
   event: ScheduleEvent;
@@ -25,9 +26,7 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
     const locationText = event.location || '일반';
     const url = `${window.location.origin}${window.location.pathname}?scheduleId=${event.id}`;
     
-    const attendeesList = event.attendees
-      ? event.attendees.split(',').map(n => n.trim()).filter(n => n.length > 0)
-      : [];
+    const attendeesList = getAttendeesList(event.attendees);
     const attendeesText = attendeesList.length > 0
       ? `${attendeesList.join(', ')} (${attendeesList.length}명)`
       : '없음';
@@ -56,11 +55,9 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
     if (cached) setNewName(cached);
   }, []);
 
-  const getAttendeesList = (): string[] => {
-    if (!event.attendees) return [];
-    return event.attendees.split(',').map(n => n.trim()).filter(n => n.length > 0);
-  };
-  const attendees = getAttendeesList();
+  const attendees = getAttendeesList(event.attendees);
+  const authorName = getAuthorName(event.attendees);
+  const displayAttendees = getDisplayAttendeesList(event.attendees);
 
   const handleAddAttendee = (name: string) => {
     const trimmed = name.trim();
@@ -74,6 +71,7 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
   };
 
   const handleRemoveAttendee = (name: string) => {
+    if (name === authorName) return; // 작성자는 참석자 목록에서 제외할 수 없음
     if (!window.confirm(`"${name}" 님을 참석자에서 제외하시겠습니까?`)) return;
     const updated = attendees.filter(n => n !== name);
     onUpdateEvent({ ...event, attendees: updated.length > 0 ? updated.join(', ') : null });
@@ -200,21 +198,31 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
               </div>
             ) : (
               <div className="flex flex-wrap gap-1.5 bg-white p-3 rounded-xl border-2 border-[#E2E8F0] min-h-12">
-                {attendees.map((name, index) => (
-                  <button
-                    key={name}
-                    onClick={() => handleRemoveAttendee(name)}
-                    className={`flex items-center gap-1 px-3 py-1.5 border-2 rounded-full text-xs font-extrabold transition group cursor-pointer ${
-                      index === 0
-                        ? 'bg-amber-50 border-[#FBBF24] text-amber-900 hover:bg-pink-50 hover:border-[#F472B6] hover:text-pink-700'
-                        : 'bg-violet-50 border-[#8B5CF6] text-violet-700 hover:bg-pink-50 hover:border-[#F472B6] hover:text-pink-700'
-                    }`}
-                    title={index === 0 ? '작성자 (클릭시 참석 취소)' : '참석 취소'}
-                  >
-                    <span>{index === 0 ? `👑 ${name} (작성자)` : name}</span>
-                    <X className="w-3 h-3 opacity-60 group-hover:opacity-100 transition" strokeWidth={2.5} />
-                  </button>
-                ))}
+                {displayAttendees.map((name) => {
+                  const isAuthor = name === authorName;
+                  if (isAuthor) {
+                    return (
+                      <span
+                        key={name}
+                        className="flex items-center gap-1 px-3 py-1.5 border-2 rounded-full text-xs font-extrabold bg-amber-50 border-[#FBBF24] text-amber-900"
+                        title="작성자는 참석자 목록에서 제외할 수 없어요"
+                      >
+                        <span>👑 {name} (작성자)</span>
+                      </span>
+                    );
+                  }
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => handleRemoveAttendee(name)}
+                      className="flex items-center gap-1 px-3 py-1.5 border-2 rounded-full text-xs font-extrabold transition group cursor-pointer bg-violet-50 border-[#8B5CF6] text-violet-700 hover:bg-pink-50 hover:border-[#F472B6] hover:text-pink-700"
+                      title="참석 취소"
+                    >
+                      <span>{name}</span>
+                      <X className="w-3 h-3 opacity-60 group-hover:opacity-100 transition" strokeWidth={2.5} />
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

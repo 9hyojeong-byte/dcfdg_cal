@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Edit2, Trash2, Plus, Settings, X, CalendarDays, Link } from 'lucide-react';
 import { ScheduleEvent } from '../types';
 import { formatTime, isPastDate } from '../lib/timeUtils';
+import { getAttendeesList, getAuthorName, getDisplayAttendeesList } from '../lib/authors';
 
 interface EventListViewProps {
   selectedDate: string;
@@ -114,9 +115,7 @@ function EventCard({
     const locationText = ev.location || '일반';
     const url = `${window.location.origin}${window.location.pathname}?scheduleId=${ev.id}`;
     
-    const attendeesList = ev.attendees
-      ? ev.attendees.split(',').map(n => n.trim()).filter(n => n.length > 0)
-      : [];
+    const attendeesList = getAttendeesList(ev.attendees);
     const attendeesText = attendeesList.length > 0
       ? `${attendeesList.join(', ')} (${attendeesList.length}명)`
       : '없음';
@@ -172,18 +171,21 @@ function EventCard({
             )}
             {ev.attendees && (
               <div className="mt-1.5 flex flex-wrap gap-1">
-                {ev.attendees.split(',').map(n => n.trim()).filter(Boolean).map((name, idx) => (
-                  <span
-                    key={name}
-                    className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
-                      idx === 0
-                        ? (isPast ? 'bg-amber-100 text-amber-800' : 'bg-amber-400 text-[#1E293B] border border-[#1E293B]')
-                        : `${attendeeBg} ${attendeeText}`
-                    }`}
-                  >
-                    {idx === 0 ? `👑 ${name}` : name}
-                  </span>
-                ))}
+                {getDisplayAttendeesList(ev.attendees).map((name) => {
+                  const isAuthor = name === getAuthorName(ev.attendees);
+                  return (
+                    <span
+                      key={name}
+                      className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
+                        isAuthor
+                          ? (isPast ? 'bg-amber-100 text-amber-800' : 'bg-amber-400 text-[#1E293B] border border-[#1E293B]')
+                          : `${attendeeBg} ${attendeeText}`
+                      }`}
+                    >
+                      {isAuthor ? `👑 ${name}` : name}
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>

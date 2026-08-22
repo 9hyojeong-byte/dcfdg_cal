@@ -3,6 +3,7 @@ import { X, Calendar, Clock, AlignLeft, Check, MapPin, User, Waves } from 'lucid
 import { ScheduleEvent } from '../types';
 import { formatTime, normalizeToHourLabel } from '../lib/timeUtils';
 import { LOCATION_COLORS } from '../lib/locationColors';
+import { getAttendeesList, getAuthorName } from '../lib/authors';
 
 interface EventFormProps {
   selectedDate: string;
@@ -72,15 +73,8 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
       setDescription(editingEvent.description || '');
       setDeepTankUsage(editingEvent.deepTankUsage || null);
 
-      const attendeesList = editingEvent.attendees
-        ? editingEvent.attendees.split(',').map(s => s.trim()).filter(Boolean)
-        : [];
-
-      if (attendeesList.length > 0) {
-        setAuthor(attendeesList[0]);
-      } else {
-        setAuthor(savedName);
-      }
+      const realAuthorName = getAuthorName(editingEvent.attendees);
+      setAuthor(realAuthorName || savedName);
 
       let detLocation: LocationType = '딥스';
       if (editingEvent.location && LOCATIONS.includes(editingEvent.location as any)) {
@@ -162,8 +156,12 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
 
     let combinedAttendees: string | null = null;
     if (editingEvent && editingEvent.attendees) {
-      const existingList = editingEvent.attendees.split(',').map(s => s.trim()).filter(Boolean);
-      const rest = existingList.slice(1).filter(s => s !== trimmedAuthor);
+      const existingList = getAttendeesList(editingEvent.attendees);
+      const realAuthorName = getAuthorName(editingEvent.attendees);
+      // 배열의 첫 번째 자리를 무조건 제거하는 대신, 실제 작성자 이름과 일치하는
+      // 항목을 찾아서 제거한다 (참석자 순서가 어긋나 있어도 작성자 정보가
+      // 다른 사람 이름으로 덮어써지지 않도록).
+      const rest = existingList.filter(s => s !== realAuthorName && s !== trimmedAuthor);
       combinedAttendees = trimmedAuthor ? [trimmedAuthor, ...rest].join(', ') : (rest.join(', ') || null);
     } else {
       combinedAttendees = trimmedAuthor || null;

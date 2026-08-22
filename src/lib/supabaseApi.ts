@@ -79,7 +79,10 @@ export async function fetchSchedules(): Promise<ScheduleEvent[]> {
     .select(`*, ${ATTENDEES_TABLE}(nickname)`)
     .eq('company', COMPANY_CODE)
     .is('deleted_at', null)
-    .order('start_date', { ascending: true });
+    .order('start_date', { ascending: true })
+    // schedule_attendees는 등록 순서(=작성자 판별 기준)대로 명시적으로 정렬해서 가져와야 한다.
+    // ORDER BY 없이 조회하면 첫 번째 참석자(=작성자)가 뒤바뀔 수 있다.
+    .order('created_at', { referencedTable: ATTENDEES_TABLE, ascending: true });
 
   if (error) {
     throw new Error(`Supabase에서 일정을 가져오지 못했습니다: ${error.message}`);
@@ -137,9 +140,20 @@ export async function saveSchedules(schedules: ScheduleEvent[]): Promise<void> {
       }
 
       if (nicknames.length > 0) {
+        // created_at을 배열 순서에 맞춰 명시적으로 1ms씩 늘려서 부여한다.
+        // 재저장 때마다 전체 삭제 후 재삽입하므로, DB 기본값(now())에만 맡기면
+        // 여러 행이 같은 시각으로 저장되어 등록 순서(=작성자 판별 기준)가
+        // 무작위로 뒤섞일 수 있다.
+        const baseTime = Date.now();
         const { error: insertAttendeesError } = await supabase
           .from(ATTENDEES_TABLE)
-          .insert(nicknames.map((nickname) => ({ schedule_id: event.id, nickname })));
+          .insert(
+            nicknames.map((nickname, i) => ({
+              schedule_id: event.id,
+              nickname,
+              created_at: new Date(baseTime + i).toISOString(),
+            }))
+          );
         if (insertAttendeesError) {
           throw new Error(`참석자 동기화(등록)에 실패했습니다: ${insertAttendeesError.message}`);
         }
