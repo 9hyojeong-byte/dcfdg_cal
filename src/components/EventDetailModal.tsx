@@ -3,6 +3,7 @@ import { X, Calendar, Clock, MapPin, AlignLeft, Users, UserPlus, Sparkles, Link,
 import { ScheduleEvent } from '../types';
 import { formatTime } from '../lib/timeUtils';
 import { getAttendeesList, getAuthorName, getDisplayAttendeesList } from '../lib/authors';
+import { linkifyText } from '../lib/linkify';
 
 interface EventDetailModalProps {
   event: ScheduleEvent;
@@ -175,7 +176,7 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
                 <AlignLeft className="w-3.5 h-3.5" />메모
               </label>
               <div className="bg-white p-4 rounded-xl border-2 border-[#E2E8F0] text-sm font-medium text-[#475569] leading-relaxed break-all whitespace-pre-line">
-                {event.description}
+                {linkifyText(event.description)}
               </div>
             </div>
           )}

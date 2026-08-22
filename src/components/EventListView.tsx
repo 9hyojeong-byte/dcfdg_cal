@@ -3,6 +3,7 @@ import { Edit2, Trash2, Plus, Settings, X, CalendarDays, Link } from 'lucide-rea
 import { ScheduleEvent } from '../types';
 import { formatTime, isPastDate } from '../lib/timeUtils';
 import { getAttendeesList, getAuthorName, getDisplayAttendeesList } from '../lib/authors';
+import { linkifyText } from '../lib/linkify';
 
 interface EventListViewProps {
   selectedDate: string;
@@ -166,7 +167,7 @@ function EventCard({
             </div>
             {ev.description && (
               <p className={`text-[11px] ${descText} mt-0.5 leading-relaxed break-all whitespace-pre-line font-medium max-h-10 overflow-hidden`}>
-                {ev.description}
+                {linkifyText(ev.description)}
               </p>
             )}
             {ev.attendees && (
