@@ -6,7 +6,8 @@ import EventListView from './components/EventListView';
 import EventForm from './components/EventForm';
 import ImageUploader from './components/ImageUploader';
 import EventDetailModal from './components/EventDetailModal';
-import { fetchSchedules, saveSingleEvent } from './lib/supabaseApi';
+import { fetchSchedules, saveSingleEvent, addAttendee, removeAttendee, renameAttendee } from './lib/supabaseApi';
+import { getAuthorName } from './lib/authors';
 
 function isEventDeleted(event: ScheduleEvent): boolean {
   if (!event.attendees) return false;
@@ -163,14 +164,15 @@ export default function App() {
     loadDataFromGAS();
   }, [loadDataFromGAS]);
 
-  // 변경된 이벤트 "하나"만 저장한다. 로컬 events 배열 전체를 저장하는 방식으로
-  // 되돌리면 안 됨 — 여러 사람이 동시에 쓰는 캘린더라, 낡은 스냅샷을 들고 있는
-  // 클라이언트가 전체를 다시 쓰면 그 사이 다른 사람이 다른 일정에 추가한 참석자가
-  // 삭제되는 버그가 생긴다.
-  const syncSchedulesWithGoogle = async (changedEvent: ScheduleEvent) => {
+  // 일정 자체(제목/날짜/장소 등)만 저장한다. 참석자는 절대 이 경로로
+  // 통째로 동기화하지 않음 — 같은 일정을 두 사람이 거의 동시에 열어놓고
+  // 있으면, 낡은 참석자 스냅샷이 서로의 변경을 덮어쓰는 버그가 생긴다.
+  // 참석자 추가/삭제/작성자명 변경은 addAttendee/removeAttendee/
+  // renameAttendee로 한 행만 건드릴 것.
+  const syncSchedulesWithGoogle = async (changedEvent: ScheduleEvent, opts?: { isNew?: boolean }) => {
     setSyncStatus('syncing');
     try {
-      await saveSingleEvent(changedEvent);
+      await saveSingleEvent(changedEvent, opts);
       setSyncStatus('success');
     } catch (err) {
       console.error('Failed to save event:', err);
@@ -179,35 +181,95 @@ export default function App() {
   };
 
   const handleSaveEvent = async (formEvent: Omit<ScheduleEvent, 'createdAt'>) => {
-    const isExisting = events.some(e => String(e.id) === String(formEvent.id));
-    const savedEvent: ScheduleEvent = isExisting
-      ? { ...events.find(e => String(e.id) === String(formEvent.id))!, ...formEvent }
-      : { ...formEvent, createdAt: new Date().toISOString() };
-    const updatedEvents = isExisting
-      ? events.map(e => String(e.id) === String(formEvent.id) ? savedEvent : e)
-      : [...events, savedEvent];
-    setEvents(updatedEvents);
+    const existingEvent = events.find(e => String(e.id) === String(formEvent.id));
+    const isNew = !existingEvent;
+    const savedEvent: ScheduleEvent = isNew
+      ? { ...formEvent, createdAt: new Date().toISOString() }
+      : { ...existingEvent, ...formEvent };
+    setEvents(
+      isNew
+        ? [...events, savedEvent]
+        : events.map(e => String(e.id) === String(formEvent.id) ? savedEvent : e)
+    );
     setIsFormOpen(false);
     setEditingEvent(null);
-    syncSchedulesWithGoogle(savedEvent);
+
+    await syncSchedulesWithGoogle(savedEvent, { isNew });
+
+    // 기존 일정을 수정한 경우, 작성자명이 바뀌었으면 그 참석자 행 하나만
+    // 동기화한다 (다른 참석자는 손대지 않음).
+    if (!isNew && existingEvent) {
+      const oldAuthorName = getAuthorName(existingEvent.attendees);
+      const newAuthorName = getAuthorName(savedEvent.attendees);
+      if (oldAuthorName !== newAuthorName) {
+        try {
+          if (oldAuthorName && newAuthorName) {
+            await renameAttendee(savedEvent.id, oldAuthorName, newAuthorName);
+          } else if (oldAuthorName && !newAuthorName) {
+            await removeAttendee(savedEvent.id, oldAuthorName);
+          } else if (newAuthorName) {
+            await addAttendee(savedEvent.id, newAuthorName);
+          }
+        } catch (err) {
+          console.error('Failed to sync author change:', err);
+          setSyncStatus('error');
+        }
+      }
+    }
   };
 
   const handleDeleteEvent = async (id: string) => {
     const target = events.find(e => String(e.id) === String(id));
     if (!target) return;
     const attendeesList = target.attendees ? target.attendees.split(',').map(n => n.trim()) : [];
-    if (!attendeesList.includes('삭제됨')) {
-      attendeesList.push('삭제됨');
-    }
-    const updatedEvent = { ...target, attendees: attendeesList.join(', ') };
+    if (attendeesList.includes('삭제됨')) return;
+    const updatedEvent = { ...target, attendees: [...attendeesList, '삭제됨'].join(', ') };
     setEvents(events.map(e => String(e.id) === String(id) ? updatedEvent : e));
-    syncSchedulesWithGoogle(updatedEvent);
+
+    setSyncStatus('syncing');
+    try {
+      await addAttendee(id, '삭제됨');
+      setSyncStatus('success');
+    } catch (err) {
+      console.error('Failed to delete event:', err);
+      setSyncStatus('error');
+    }
   };
 
-  const handleUpdateEvent = async (updatedEvent: ScheduleEvent) => {
-    setEvents(events.map(e => String(e.id) === String(updatedEvent.id) ? updatedEvent : e));
-    if (selectedEventForDetail && String(selectedEventForDetail.id) === String(updatedEvent.id)) setSelectedEventForDetail(updatedEvent);
-    syncSchedulesWithGoogle(updatedEvent);
+  const handleAddAttendeeToEvent = async (eventId: string, nickname: string) => {
+    const target = events.find(e => String(e.id) === String(eventId));
+    if (!target) return;
+    const attendeesList = target.attendees ? target.attendees.split(',').map(n => n.trim()).filter(Boolean) : [];
+    const updatedEvent = { ...target, attendees: [...attendeesList, nickname].join(', ') };
+    setEvents(events.map(e => String(e.id) === String(eventId) ? updatedEvent : e));
+    if (selectedEventForDetail && String(selectedEventForDetail.id) === String(eventId)) setSelectedEventForDetail(updatedEvent);
+
+    setSyncStatus('syncing');
+    try {
+      await addAttendee(eventId, nickname);
+      setSyncStatus('success');
+    } catch (err) {
+      console.error('Failed to add attendee:', err);
+      setSyncStatus('error');
+    }
+  };
+
+  const handleRemoveAttendeeFromEvent = async (eventId: string, nickname: string) => {
+    const target = events.find(e => String(e.id) === String(eventId));
+    if (!target) return;
+    const attendeesList = target.attendees ? target.attendees.split(',').map(n => n.trim()).filter(Boolean) : [];
+    const updatedEvent = { ...target, attendees: attendeesList.filter(n => n !== nickname).join(', ') || null };
+    setEvents(events.map(e => String(e.id) === String(eventId) ? updatedEvent : e));
+    if (selectedEventForDetail && String(selectedEventForDetail.id) === String(eventId)) setSelectedEventForDetail(updatedEvent);
+
+    setSyncStatus('syncing');
+    try {
+      await removeAttendee(eventId, nickname);
+      setSyncStatus('success');
+    } catch (err) {
+      console.error('Failed to remove attendee:', err);
+      setSyncStatus('error');
+    }
   };
 
   const handleImportParsedEvents = async (imported: Omit<ScheduleEvent, 'id' | 'createdAt'>[]) => {
@@ -228,7 +290,7 @@ export default function App() {
     }
     setSyncStatus('syncing');
     try {
-      await Promise.all(newEvents.map(ev => saveSingleEvent(ev)));
+      await Promise.all(newEvents.map(ev => saveSingleEvent(ev, { isNew: true })));
       setSyncStatus('success');
     } catch (err) {
       console.error('Failed to save imported events:', err);
@@ -447,7 +509,8 @@ export default function App() {
           <EventDetailModal
             event={selectedEventForDetail}
             onClose={handleCloseEventDetail}
-            onUpdateEvent={handleUpdateEvent}
+            onAddAttendee={(nickname) => handleAddAttendeeToEvent(selectedEventForDetail.id, nickname)}
+            onRemoveAttendee={(nickname) => handleRemoveAttendeeFromEvent(selectedEventForDetail.id, nickname)}
           />
         )}
 

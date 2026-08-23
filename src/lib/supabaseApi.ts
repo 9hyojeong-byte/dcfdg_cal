@@ -1,5 +1,6 @@
 import { ScheduleEvent } from '../types';
 import { supabase } from './supabaseClient';
+import { getAuthorName } from './authors';
 
 const SCHEDULES_TABLE = 'schedules';
 const ATTENDEES_TABLE = 'schedule_attendees';
@@ -55,20 +56,6 @@ function eventToRow(event: ScheduleEvent) {
   };
 }
 
-function parseAttendeeNicknames(attendees: string | null | undefined): string[] {
-  if (!attendees) return [];
-  const seen = new Set<string>();
-  const nicknames: string[] = [];
-  for (const raw of attendees.split(',')) {
-    const name = raw.trim();
-    if (name && !seen.has(name)) {
-      seen.add(name);
-      nicknames.push(name);
-    }
-  }
-  return nicknames;
-}
-
 /**
  * Fetches all active schedule events for this company (dcfdg) from Supabase,
  * joined with their attendee nicknames.
@@ -92,16 +79,22 @@ export async function fetchSchedules(): Promise<ScheduleEvent[]> {
 }
 
 /**
- * Upserts a single schedule event and resyncs only its own attendee list.
+ * Upserts a single schedule event's own fields (title/date/location/...).
  *
- * 이 앱은 여러 사람이 동시에 쓰는 공용 캘린더라, 변경된 일정 하나만 건드려야 한다.
- * 예전에는 로컬에 들고 있는 전체 events 배열을 통째로 다시 써서, 어떤 클라이언트가
- * (다른 곳에서 방금 추가된 참석자를 아직 못 받아온) 낡은 스냅샷 상태로 아무 일정이나
- * 하나 저장하면 그 사이 다른 사람이 다른 일정에 추가한 참석자가 통째로 삭제되는
- * 버그가 있었다. 반드시 이 함수로 "이번에 실제로 바뀐 이벤트"만 저장할 것 —
- * 로컬 배열 전체를 순회하며 저장하는 방식으로 되돌리지 말 것.
+ * 이 함수는 절대 schedule_attendees를 통째로 지웠다 다시 쓰지 않는다 — 같은
+ * 일정을 두 사람이 거의 동시에 열어놓고 있으면, 한쪽이 들고 있는 낡은
+ * 참석자 스냅샷이 다른 쪽이 방금 추가/삭제한 참석자를 덮어써버리기 때문이다.
+ * 참석자 추가/삭제/이름변경은 반드시 addAttendee / removeAttendee /
+ * renameAttendee로 "한 행만" 건드릴 것.
+ *
+ * opts.isNew는 방금 새로 만든 일정일 때만 true로 준다 — 이 경우엔 아직
+ * 아무도 참석자를 건드릴 수 없었으므로(경합 대상이 없음) 작성자 1명을
+ * 최초 참석자로 삽입해도 안전하다.
  */
-export async function saveSingleEvent(event: ScheduleEvent): Promise<void> {
+export async function saveSingleEvent(
+  event: ScheduleEvent,
+  opts?: { isNew?: boolean }
+): Promise<void> {
   const row = eventToRow(event);
   const { error: upsertError } = await supabase
     .from(SCHEDULES_TABLE)
@@ -110,33 +103,53 @@ export async function saveSingleEvent(event: ScheduleEvent): Promise<void> {
     throw new Error(`Supabase 동기화에 실패했습니다: ${upsertError.message}`);
   }
 
-  const nicknames = parseAttendeeNicknames(event.attendees);
+  if (opts?.isNew) {
+    const authorName = getAuthorName(event.attendees);
+    if (authorName) {
+      const { error: insertAuthorError } = await supabase
+        .from(ATTENDEES_TABLE)
+        .insert({ schedule_id: event.id, nickname: authorName });
+      if (insertAuthorError) {
+        throw new Error(`참석자 등록에 실패했습니다: ${insertAuthorError.message}`);
+      }
+    }
+  }
+}
 
-  const { error: deleteAttendeesError } = await supabase
+/** 참석자 한 명을 추가한다. 같은 일정의 다른 참석자는 절대 건드리지 않는다. */
+export async function addAttendee(scheduleId: string, nickname: string): Promise<void> {
+  const { error } = await supabase
+    .from(ATTENDEES_TABLE)
+    .insert({ schedule_id: scheduleId, nickname });
+  if (error) {
+    throw new Error(`참석자 등록에 실패했습니다: ${error.message}`);
+  }
+}
+
+/** 참석자 한 명을 제외한다. 같은 일정의 다른 참석자는 절대 건드리지 않는다. */
+export async function removeAttendee(scheduleId: string, nickname: string): Promise<void> {
+  const { error } = await supabase
     .from(ATTENDEES_TABLE)
     .delete()
-    .eq('schedule_id', event.id);
-  if (deleteAttendeesError) {
-    throw new Error(`참석자 동기화(삭제)에 실패했습니다: ${deleteAttendeesError.message}`);
+    .eq('schedule_id', scheduleId)
+    .eq('nickname', nickname);
+  if (error) {
+    throw new Error(`참석자 삭제에 실패했습니다: ${error.message}`);
   }
+}
 
-  if (nicknames.length > 0) {
-    // created_at을 배열 순서에 맞춰 명시적으로 1ms씩 늘려서 부여한다.
-    // 재저장 때마다 이 일정의 참석자를 전체 삭제 후 재삽입하므로, DB 기본값(now())에만
-    // 맡기면 여러 행이 같은 시각으로 저장되어 등록 순서(=작성자 판별 기준)가
-    // 무작위로 뒤섞일 수 있다.
-    const baseTime = Date.now();
-    const { error: insertAttendeesError } = await supabase
-      .from(ATTENDEES_TABLE)
-      .insert(
-        nicknames.map((nickname, i) => ({
-          schedule_id: event.id,
-          nickname,
-          created_at: new Date(baseTime + i).toISOString(),
-        }))
-      );
-    if (insertAttendeesError) {
-      throw new Error(`참석자 동기화(등록)에 실패했습니다: ${insertAttendeesError.message}`);
-    }
+/** 작성자/리더 이름 변경: 그 행 하나만 이름을 바꾼다. 나머지 참석자는 그대로 둔다. */
+export async function renameAttendee(
+  scheduleId: string,
+  oldNickname: string,
+  newNickname: string
+): Promise<void> {
+  const { error } = await supabase
+    .from(ATTENDEES_TABLE)
+    .update({ nickname: newNickname })
+    .eq('schedule_id', scheduleId)
+    .eq('nickname', oldNickname);
+  if (error) {
+    throw new Error(`작성자 이름 변경에 실패했습니다: ${error.message}`);
   }
 }

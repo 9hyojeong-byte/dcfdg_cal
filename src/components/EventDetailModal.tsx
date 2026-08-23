@@ -8,10 +8,11 @@ import { linkifyText } from '../lib/linkify';
 interface EventDetailModalProps {
   event: ScheduleEvent;
   onClose: () => void;
-  onUpdateEvent: (updatedEvent: ScheduleEvent) => void;
+  onAddAttendee: (nickname: string) => void;
+  onRemoveAttendee: (nickname: string) => void;
 }
 
-export default function EventDetailModal({ event, onClose, onUpdateEvent }: EventDetailModalProps) {
+export default function EventDetailModal({ event, onClose, onAddAttendee, onRemoveAttendee }: EventDetailModalProps) {
   const [newName, setNewName] = useState('');
   const [savedMyName, setSavedMyName] = useState('');
   const [showToast, setShowToast] = useState(false);
@@ -66,16 +67,14 @@ export default function EventDetailModal({ event, onClose, onUpdateEvent }: Even
     if (attendees.includes(trimmed)) { alert('이미 등록된 참석자입니다.'); return; }
     localStorage.setItem('lastAttendeeName', trimmed);
     setSavedMyName(trimmed);
-    const updated = [...attendees, trimmed];
-    onUpdateEvent({ ...event, attendees: updated.join(', ') });
+    onAddAttendee(trimmed);
     setNewName('');
   };
 
   const handleRemoveAttendee = (name: string) => {
     if (name === authorName) return; // 작성자는 참석자 목록에서 제외할 수 없음
     if (!window.confirm(`"${name}" 님을 참석자에서 제외하시겠습니까?`)) return;
-    const updated = attendees.filter(n => n !== name);
-    onUpdateEvent({ ...event, attendees: updated.length > 0 ? updated.join(', ') : null });
+    onRemoveAttendee(name);
   };
 
   const formatKoreanDate = (dateStr: string) => {
