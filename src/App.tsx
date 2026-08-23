@@ -6,7 +6,7 @@ import EventListView from './components/EventListView';
 import EventForm from './components/EventForm';
 import ImageUploader from './components/ImageUploader';
 import EventDetailModal from './components/EventDetailModal';
-import { fetchSchedules, saveSchedules } from './lib/supabaseApi';
+import { fetchSchedules, saveSingleEvent } from './lib/supabaseApi';
 
 function isEventDeleted(event: ScheduleEvent): boolean {
   if (!event.attendees) return false;
@@ -163,51 +163,51 @@ export default function App() {
     loadDataFromGAS();
   }, [loadDataFromGAS]);
 
-  const syncSchedulesWithGoogle = async (updatedEvents: ScheduleEvent[]) => {
+  // 변경된 이벤트 "하나"만 저장한다. 로컬 events 배열 전체를 저장하는 방식으로
+  // 되돌리면 안 됨 — 여러 사람이 동시에 쓰는 캘린더라, 낡은 스냅샷을 들고 있는
+  // 클라이언트가 전체를 다시 쓰면 그 사이 다른 사람이 다른 일정에 추가한 참석자가
+  // 삭제되는 버그가 생긴다.
+  const syncSchedulesWithGoogle = async (changedEvent: ScheduleEvent) => {
     setSyncStatus('syncing');
     try {
-      await saveSchedules(updatedEvents);
+      await saveSingleEvent(changedEvent);
       setSyncStatus('success');
     } catch (err) {
-      console.error('Failed to save to Google Apps Script:', err);
+      console.error('Failed to save event:', err);
       setSyncStatus('error');
     }
   };
 
   const handleSaveEvent = async (formEvent: Omit<ScheduleEvent, 'createdAt'>) => {
-    let updatedEvents: ScheduleEvent[] = [];
     const isExisting = events.some(e => String(e.id) === String(formEvent.id));
-    if (isExisting) {
-      updatedEvents = events.map(e => String(e.id) === String(formEvent.id) ? { ...e, ...formEvent } : e);
-    } else {
-      updatedEvents = [...events, { ...formEvent, createdAt: new Date().toISOString() }];
-    }
+    const savedEvent: ScheduleEvent = isExisting
+      ? { ...events.find(e => String(e.id) === String(formEvent.id))!, ...formEvent }
+      : { ...formEvent, createdAt: new Date().toISOString() };
+    const updatedEvents = isExisting
+      ? events.map(e => String(e.id) === String(formEvent.id) ? savedEvent : e)
+      : [...events, savedEvent];
     setEvents(updatedEvents);
     setIsFormOpen(false);
     setEditingEvent(null);
-    syncSchedulesWithGoogle(updatedEvents);
+    syncSchedulesWithGoogle(savedEvent);
   };
 
   const handleDeleteEvent = async (id: string) => {
-    const updatedEvents = events.map(e => {
-      if (String(e.id) === String(id)) {
-        const attendeesList = e.attendees ? e.attendees.split(',').map(n => n.trim()) : [];
-        if (!attendeesList.includes('삭제됨')) {
-          attendeesList.push('삭제됨');
-        }
-        return { ...e, attendees: attendeesList.join(', ') };
-      }
-      return e;
-    });
-    setEvents(updatedEvents);
-    syncSchedulesWithGoogle(updatedEvents);
+    const target = events.find(e => String(e.id) === String(id));
+    if (!target) return;
+    const attendeesList = target.attendees ? target.attendees.split(',').map(n => n.trim()) : [];
+    if (!attendeesList.includes('삭제됨')) {
+      attendeesList.push('삭제됨');
+    }
+    const updatedEvent = { ...target, attendees: attendeesList.join(', ') };
+    setEvents(events.map(e => String(e.id) === String(id) ? updatedEvent : e));
+    syncSchedulesWithGoogle(updatedEvent);
   };
 
   const handleUpdateEvent = async (updatedEvent: ScheduleEvent) => {
-    const updatedEvents = events.map(e => String(e.id) === String(updatedEvent.id) ? updatedEvent : e);
-    setEvents(updatedEvents);
+    setEvents(events.map(e => String(e.id) === String(updatedEvent.id) ? updatedEvent : e));
     if (selectedEventForDetail && String(selectedEventForDetail.id) === String(updatedEvent.id)) setSelectedEventForDetail(updatedEvent);
-    syncSchedulesWithGoogle(updatedEvents);
+    syncSchedulesWithGoogle(updatedEvent);
   };
 
   const handleImportParsedEvents = async (imported: Omit<ScheduleEvent, 'id' | 'createdAt'>[]) => {
@@ -220,14 +220,20 @@ export default function App() {
       description: item.description,
       createdAt: new Date().toISOString()
     }));
-    const updatedEvents = [...events, ...newEvents];
-    setEvents(updatedEvents);
+    setEvents([...events, ...newEvents]);
     if (newEvents.length > 0) {
       setSelectedDate(newEvents[0].date);
       const targetDate = new Date(newEvents[0].date);
       if (!isNaN(targetDate.getTime())) setCurrentCalendarDate(targetDate);
     }
-    syncSchedulesWithGoogle(updatedEvents);
+    setSyncStatus('syncing');
+    try {
+      await Promise.all(newEvents.map(ev => saveSingleEvent(ev)));
+      setSyncStatus('success');
+    } catch (err) {
+      console.error('Failed to save imported events:', err);
+      setSyncStatus('error');
+    }
     setIsUploaderOpen(false);
     alert(`AI가 성공적으로 ${newEvents.length}개의 일정을 인식하여 등록했습니다!`);
   };
