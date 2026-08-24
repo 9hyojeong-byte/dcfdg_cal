@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Sparkles, Plus, CheckCircle2, ShieldAlert, X, Zap, Download, Search } from 'lucide-react';
+import { Sparkles, Plus, CheckCircle2, ShieldAlert, X, Zap, Download, Search, RefreshCw } from 'lucide-react';
 import { ScheduleEvent } from './types';
 import CalendarView from './components/CalendarView';
 import EventListView from './components/EventListView';
@@ -320,6 +320,28 @@ export default function App() {
     setSearchQuery('');
   };
 
+  // 서비스워커/캐시에 옛날 데이터가 남아있어서 새 일정이 안 보인다는
+  // 문의가 있어 추가한 강력 새로고침: SW 등록 해제 + 캐시 전부 삭제 후
+  // 페이지를 다시 불러와 완전히 새 상태로 시작한다.
+  const [isHardRefreshing, setIsHardRefreshing] = useState(false);
+  const handleHardRefresh = async () => {
+    setIsHardRefreshing(true);
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch (err) {
+      console.error('Failed to clear cache before hard refresh:', err);
+    } finally {
+      window.location.reload();
+    }
+  };
+
   const filteredEvents = events.filter(e => {
     if (isEventDeleted(e)) return false;
     if (selectedLocation && (!e.location || !e.location.trim().includes(selectedLocation))) {
@@ -368,6 +390,16 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Hard Refresh Button */}
+              <button
+                onClick={handleHardRefresh}
+                disabled={isHardRefreshing}
+                className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center cursor-pointer hover:bg-white/20 transition shadow-pop-sm text-white bg-transparent disabled:opacity-60"
+                title="강력 새로고침 (캐시 지우고 새로 불러오기)"
+              >
+                <RefreshCw className={`w-4 h-4 ${isHardRefreshing ? 'animate-spin' : ''}`} strokeWidth={2.5} />
+              </button>
+
               {/* Search Toggle Button */}
               <button
                 onClick={() => {
