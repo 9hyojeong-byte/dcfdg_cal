@@ -6,8 +6,17 @@ import EventListView from './components/EventListView';
 import EventForm from './components/EventForm';
 import ImageUploader from './components/ImageUploader';
 import EventDetailModal from './components/EventDetailModal';
-import { fetchSchedules, saveSingleEvent, addAttendee, removeAttendee, renameAttendee } from './lib/supabaseApi';
+import {
+  fetchSchedules,
+  saveSingleEvent,
+  addAttendee,
+  removeAttendee,
+  renameAttendee,
+  getSchedulePasswordHash,
+  getAttendeePasswordHash,
+} from './lib/supabaseApi';
 import { getAuthorName } from './lib/authors';
+import { hashPassword } from './lib/passwordHash';
 
 function isEventDeleted(event: ScheduleEvent): boolean {
   if (!event.attendees) return false;
@@ -169,7 +178,10 @@ export default function App() {
   // 있으면, 낡은 참석자 스냅샷이 서로의 변경을 덮어쓰는 버그가 생긴다.
   // 참석자 추가/삭제/작성자명 변경은 addAttendee/removeAttendee/
   // renameAttendee로 한 행만 건드릴 것.
-  const syncSchedulesWithGoogle = async (changedEvent: ScheduleEvent, opts?: { isNew?: boolean }) => {
+  const syncSchedulesWithGoogle = async (
+    changedEvent: ScheduleEvent,
+    opts?: { isNew?: boolean; passwordHash?: string }
+  ) => {
     setSyncStatus('syncing');
     try {
       await saveSingleEvent(changedEvent, opts);
@@ -180,7 +192,60 @@ export default function App() {
     }
   };
 
-  const handleSaveEvent = async (formEvent: Omit<ScheduleEvent, 'createdAt'>) => {
+  // 비밀번호가 설정된 일정만 검증한다 — 비밀번호를 안 걸어둔 일정은
+  // (기존 17건 포함) 그대로 누구나 수정/삭제할 수 있다.
+  const verifySchedulePassword = async (scheduleId: string): Promise<boolean> => {
+    let storedHash: string | null;
+    try {
+      storedHash = await getSchedulePasswordHash(scheduleId);
+    } catch (err) {
+      console.error('Failed to check schedule password:', err);
+      alert('비밀번호 확인 중 오류가 발생했습니다.');
+      return false;
+    }
+    if (!storedHash) return true;
+
+    const input = window.prompt('이 일정의 비밀번호를 입력해주세요.');
+    if (input === null) return false;
+    const inputHash = await hashPassword(input.trim());
+    if (inputHash !== storedHash) {
+      alert('비밀번호가 일치하지 않습니다.');
+      return false;
+    }
+    return true;
+  };
+
+  // 참석자 본인이 설정한 비밀번호가 있을 때만 검증한다 — 설정 안 했으면
+  // 기존처럼 누구나(작성자 제외) 제외할 수 있다.
+  const verifyAttendeePassword = async (scheduleId: string, nickname: string): Promise<boolean> => {
+    let storedHash: string | null;
+    try {
+      storedHash = await getAttendeePasswordHash(scheduleId, nickname);
+    } catch (err) {
+      console.error('Failed to check attendee password:', err);
+      alert('비밀번호 확인 중 오류가 발생했습니다.');
+      return false;
+    }
+    if (!storedHash) return true;
+
+    const input = window.prompt(`"${nickname}" 님이 설정한 비밀번호를 입력해주세요.`);
+    if (input === null) return false;
+    const inputHash = await hashPassword(input.trim());
+    if (inputHash !== storedHash) {
+      alert('비밀번호가 일치하지 않습니다.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleEditEventClick = async (ev: ScheduleEvent) => {
+    const passed = await verifySchedulePassword(ev.id);
+    if (!passed) return;
+    setEditingEvent(ev);
+    setIsFormOpen(true);
+  };
+
+  const handleSaveEvent = async (formEvent: Omit<ScheduleEvent, 'createdAt'>, password?: string) => {
     const existingEvent = events.find(e => String(e.id) === String(formEvent.id));
     const isNew = !existingEvent;
     const savedEvent: ScheduleEvent = isNew
@@ -194,7 +259,9 @@ export default function App() {
     setIsFormOpen(false);
     setEditingEvent(null);
 
-    await syncSchedulesWithGoogle(savedEvent, { isNew });
+    const trimmedPassword = password?.trim();
+    const passwordHash = isNew && trimmedPassword ? await hashPassword(trimmedPassword) : undefined;
+    await syncSchedulesWithGoogle(savedEvent, { isNew, passwordHash });
 
     // 기존 일정을 수정한 경우, 작성자명이 바뀌었으면 그 참석자 행 하나만
     // 동기화한다 (다른 참석자는 손대지 않음).
@@ -221,6 +288,8 @@ export default function App() {
   const handleDeleteEvent = async (id: string) => {
     const target = events.find(e => String(e.id) === String(id));
     if (!target) return;
+    const passed = await verifySchedulePassword(id);
+    if (!passed) return;
     const attendeesList = target.attendees ? target.attendees.split(',').map(n => n.trim()) : [];
     if (attendeesList.includes('삭제됨')) return;
     const updatedEvent = { ...target, attendees: [...attendeesList, '삭제됨'].join(', ') };
@@ -236,7 +305,7 @@ export default function App() {
     }
   };
 
-  const handleAddAttendeeToEvent = async (eventId: string, nickname: string) => {
+  const handleAddAttendeeToEvent = async (eventId: string, nickname: string, password?: string) => {
     const target = events.find(e => String(e.id) === String(eventId));
     if (!target) return;
     const attendeesList = target.attendees ? target.attendees.split(',').map(n => n.trim()).filter(Boolean) : [];
@@ -246,7 +315,9 @@ export default function App() {
 
     setSyncStatus('syncing');
     try {
-      await addAttendee(eventId, nickname);
+      const trimmedPassword = password?.trim();
+      const passwordHash = trimmedPassword ? await hashPassword(trimmedPassword) : undefined;
+      await addAttendee(eventId, nickname, passwordHash);
       setSyncStatus('success');
     } catch (err) {
       console.error('Failed to add attendee:', err);
@@ -255,6 +326,9 @@ export default function App() {
   };
 
   const handleRemoveAttendeeFromEvent = async (eventId: string, nickname: string) => {
+    const passed = await verifyAttendeePassword(eventId, nickname);
+    if (!passed) return;
+
     const target = events.find(e => String(e.id) === String(eventId));
     if (!target) return;
     const attendeesList = target.attendees ? target.attendees.split(',').map(n => n.trim()).filter(Boolean) : [];
@@ -520,7 +594,7 @@ export default function App() {
             selectedDate={selectedDate}
             currentMonth={currentCalendarDate}
             events={filteredEvents}
-            onEditEvent={(ev) => { setEditingEvent(ev); setIsFormOpen(true); }}
+            onEditEvent={handleEditEventClick}
             onDeleteEvent={handleDeleteEvent}
             onAddEventClick={() => { setEditingEvent(null); setIsFormOpen(true); }}
             onEventClick={handleOpenEventDetail}
@@ -555,7 +629,7 @@ export default function App() {
           <EventDetailModal
             event={selectedEventForDetail}
             onClose={handleCloseEventDetail}
-            onAddAttendee={(nickname) => handleAddAttendeeToEvent(selectedEventForDetail.id, nickname)}
+            onAddAttendee={(nickname, password) => handleAddAttendeeToEvent(selectedEventForDetail.id, nickname, password)}
             onRemoveAttendee={(nickname) => handleRemoveAttendeeFromEvent(selectedEventForDetail.id, nickname)}
           />
         )}

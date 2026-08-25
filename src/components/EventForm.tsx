@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, AlignLeft, Check, MapPin, User, Waves } from 'lucide-react';
+import { X, Calendar, Clock, AlignLeft, Check, MapPin, User, Waves, Lock } from 'lucide-react';
 import { ScheduleEvent } from '../types';
 import { formatTime, normalizeToHourLabel } from '../lib/timeUtils';
 import { LOCATION_COLORS } from '../lib/locationColors';
@@ -8,7 +8,7 @@ import { getAttendeesList, getAuthorName } from '../lib/authors';
 interface EventFormProps {
   selectedDate: string;
   editingEvent: ScheduleEvent | null;
-  onSave: (event: Omit<ScheduleEvent, 'createdAt'>) => void;
+  onSave: (event: Omit<ScheduleEvent, 'createdAt'>, password?: string) => void;
   onCancel: () => void;
 }
 
@@ -60,6 +60,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
   const [hour, setHour] = useState('12시');
   const [deepTankUsage, setDeepTankUsage] = useState<string | null>(null);
   const [description, setDescription] = useState('');
+  const [password, setPassword] = useState('');
 
   useEffect(() => {
     // 저장되었던 작성자 또는 마지막 참석자 이름 가져오기
@@ -106,6 +107,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
     } else {
       setDate(selectedDate); setEndDate(selectedDate); setLocation('딥스');
       setIsAllDay(false); setSession('1부'); setHour('12시'); setDeepTankUsage(null); setDescription('');
+      setPassword('');
       setAuthor(savedName);
       setIsTitleUserModified(false);
 
@@ -179,19 +181,22 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
       }
     }
 
-    onSave({
-      ...editingEvent,
-      id: editingEvent?.id || crypto.randomUUID(),
-      title: title.trim(),
-      date,
-      endDate: endDate && endDate !== date ? endDate : null,
-      startTime: finalStartTime,
-      endTime: editingEvent ? editingEvent.endTime : null,
-      deepTankUsage: (location === '딥스' || location === '파라') ? (deepTankUsage || null) : null,
-      description: description.trim() || null,
-      location,
-      attendees: combinedAttendees,
-    });
+    onSave(
+      {
+        ...editingEvent,
+        id: editingEvent?.id || crypto.randomUUID(),
+        title: title.trim(),
+        date,
+        endDate: endDate && endDate !== date ? endDate : null,
+        startTime: finalStartTime,
+        endTime: editingEvent ? editingEvent.endTime : null,
+        deepTankUsage: (location === '딥스' || location === '파라') ? (deepTankUsage || null) : null,
+        description: description.trim() || null,
+        location,
+        attendees: combinedAttendees,
+      },
+      editingEvent ? undefined : password
+    );
   };
 
   return (
@@ -233,6 +238,24 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
               autoFocus
             />
           </div>
+
+          {/* 비밀번호 (선택) - 새 일정을 만들 때만 설정 가능. 설정해두면
+              나중에 이 일정을 수정/삭제할 때 이 비밀번호를 입력해야 함. */}
+          {!editingEvent && (
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
+                <Lock className="w-3.5 h-3.5 text-[#8B5CF6]" />비밀번호 (선택, 나중에 수정/삭제 시 필요)
+              </label>
+              <input
+                type="password"
+                maxLength={20}
+                placeholder="설정 안 하면 누구나 수정/삭제 가능"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition placeholder:text-[#94A3B8]"
+              />
+            </div>
+          )}
 
           {/* 2. Date Selection */}
           <div className="space-y-4">

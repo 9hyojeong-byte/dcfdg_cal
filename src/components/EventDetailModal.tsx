@@ -8,13 +8,15 @@ import { linkifyText } from '../lib/linkify';
 interface EventDetailModalProps {
   event: ScheduleEvent;
   onClose: () => void;
-  onAddAttendee: (nickname: string) => void;
+  onAddAttendee: (nickname: string, password?: string) => void;
   onRemoveAttendee: (nickname: string) => void;
 }
 
 export default function EventDetailModal({ event, onClose, onAddAttendee, onRemoveAttendee }: EventDetailModalProps) {
   const [newName, setNewName] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [savedMyName, setSavedMyName] = useState('');
+  const [savedMyPassword, setSavedMyPassword] = useState('');
   const [showToast, setShowToast] = useState(false);
 
   const handleCopyLink = async () => {
@@ -52,22 +54,28 @@ export default function EventDetailModal({ event, onClose, onAddAttendee, onRemo
   };
 
   useEffect(() => {
-    const cached = localStorage.getItem('lastAttendeeName') || '';
-    setSavedMyName(cached);
-    if (cached) setNewName(cached);
+    const cachedName = localStorage.getItem('lastAttendeeName') || '';
+    const cachedPassword = localStorage.getItem('lastAttendeePassword') || '';
+    setSavedMyName(cachedName);
+    setSavedMyPassword(cachedPassword);
+    if (cachedName) setNewName(cachedName);
+    if (cachedPassword) setNewPassword(cachedPassword);
   }, []);
 
   const attendees = getAttendeesList(event.attendees);
   const authorName = getAuthorName(event.attendees);
   const displayAttendees = getDisplayAttendeesList(event.attendees);
 
-  const handleAddAttendee = (name: string) => {
+  const handleAddAttendee = (name: string, password: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     if (attendees.includes(trimmed)) { alert('이미 등록된 참석자입니다.'); return; }
+    const trimmedPassword = password.trim();
     localStorage.setItem('lastAttendeeName', trimmed);
+    if (trimmedPassword) localStorage.setItem('lastAttendeePassword', trimmedPassword);
     setSavedMyName(trimmed);
-    onAddAttendee(trimmed);
+    setSavedMyPassword(trimmedPassword);
+    onAddAttendee(trimmed, trimmedPassword || undefined);
     setNewName('');
   };
 
@@ -240,22 +248,32 @@ export default function EventDetailModal({ event, onClose, onAddAttendee, onRemo
                 placeholder="이름 입력 (예: 길동)"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); handleAddAttendee(newName); }}}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); handleAddAttendee(newName, newPassword); }}}
                 className="flex-1 px-3 py-2.5 border-2 border-[#CBD5E1] bg-white rounded-full text-xs font-bold text-[#1E293B] input-geo transition placeholder:text-[#94A3B8]"
               />
               <button
                 type="button"
-                onClick={() => handleAddAttendee(newName)}
+                onClick={() => handleAddAttendee(newName, newPassword)}
                 className="px-4 py-2.5 bg-[#8B5CF6] text-white font-extrabold text-xs rounded-full border-2 border-[#1E293B] shadow-pop-sm btn-candy cursor-pointer"
               >
                 등록
               </button>
             </div>
 
+            <input
+              type="password"
+              maxLength={20}
+              placeholder="비밀번호 (선택, 나중에 본인 참석 취소 시 필요)"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); handleAddAttendee(newName, newPassword); }}}
+              className="w-full px-3 py-2.5 border-2 border-[#CBD5E1] bg-white rounded-full text-xs font-bold text-[#1E293B] input-geo transition placeholder:text-[#94A3B8]"
+            />
+
             {savedMyName && !attendees.includes(savedMyName) && (
               <button
                 type="button"
-                onClick={() => handleAddAttendee(savedMyName)}
+                onClick={() => handleAddAttendee(savedMyName, savedMyPassword)}
                 className="text-[10px] font-bold text-[#8B5CF6] hover:text-violet-800 flex items-center gap-1 transition cursor-pointer"
               >
                 <Sparkles className="w-3 h-3" strokeWidth={2.5} />

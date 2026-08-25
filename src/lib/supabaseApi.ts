@@ -93,7 +93,7 @@ export async function fetchSchedules(): Promise<ScheduleEvent[]> {
  */
 export async function saveSingleEvent(
   event: ScheduleEvent,
-  opts?: { isNew?: boolean }
+  opts?: { isNew?: boolean; passwordHash?: string | null }
 ): Promise<void> {
   const row = eventToRow(event);
   const { error: upsertError } = await supabase
@@ -104,6 +104,16 @@ export async function saveSingleEvent(
   }
 
   if (opts?.isNew) {
+    if (opts.passwordHash) {
+      const { error: passwordError } = await supabase
+        .from(SCHEDULES_TABLE)
+        .update({ password_hash: opts.passwordHash })
+        .eq('id', event.id);
+      if (passwordError) {
+        throw new Error(`비밀번호 설정에 실패했습니다: ${passwordError.message}`);
+      }
+    }
+
     const authorName = getAuthorName(event.attendees);
     if (authorName) {
       const { error: insertAuthorError } = await supabase
@@ -116,11 +126,51 @@ export async function saveSingleEvent(
   }
 }
 
+/**
+ * 이 일정을 수정/삭제하기 전에 비밀번호가 걸려있는지 확인할 때 쓴다.
+ * 비밀번호를 설정하지 않은 일정은 null을 반환한다(=누구나 수정/삭제 가능).
+ */
+export async function getSchedulePasswordHash(scheduleId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from(SCHEDULES_TABLE)
+    .select('password_hash')
+    .eq('id', scheduleId)
+    .single();
+  if (error) {
+    throw new Error(`비밀번호 확인에 실패했습니다: ${error.message}`);
+  }
+  return (data as { password_hash: string | null } | null)?.password_hash ?? null;
+}
+
+/**
+ * 이 참석자를 제외하기 전에 비밀번호가 걸려있는지 확인할 때 쓴다.
+ * 비밀번호를 설정하지 않은 참석자는 null을 반환한다(=누구나 제외 가능).
+ */
+export async function getAttendeePasswordHash(
+  scheduleId: string,
+  nickname: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from(ATTENDEES_TABLE)
+    .select('password_hash')
+    .eq('schedule_id', scheduleId)
+    .eq('nickname', nickname)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`비밀번호 확인에 실패했습니다: ${error.message}`);
+  }
+  return (data as { password_hash: string | null } | null)?.password_hash ?? null;
+}
+
 /** 참석자 한 명을 추가한다. 같은 일정의 다른 참석자는 절대 건드리지 않는다. */
-export async function addAttendee(scheduleId: string, nickname: string): Promise<void> {
+export async function addAttendee(
+  scheduleId: string,
+  nickname: string,
+  passwordHash?: string | null
+): Promise<void> {
   const { error } = await supabase
     .from(ATTENDEES_TABLE)
-    .insert({ schedule_id: scheduleId, nickname });
+    .insert({ schedule_id: scheduleId, nickname, password_hash: passwordHash ?? null });
   if (error) {
     throw new Error(`참석자 등록에 실패했습니다: ${error.message}`);
   }
