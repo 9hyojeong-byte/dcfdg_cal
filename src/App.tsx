@@ -342,6 +342,20 @@ export default function App() {
     }
   };
 
+  // 24시간 이상 만에 다시 접속하면, 캐시가 오래됐을 수 있으니 강력
+  // 새로고침을 추천하는 배너를 한 번 띄운다.
+  const [showRefreshSuggestion, setShowRefreshSuggestion] = useState(false);
+  useEffect(() => {
+    const LAST_VISIT_KEY = 'lastVisitAt';
+    const SUGGEST_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+
+    const lastVisitAt = Number(localStorage.getItem(LAST_VISIT_KEY));
+    if (lastVisitAt && Date.now() - lastVisitAt > SUGGEST_THRESHOLD_MS) {
+      setShowRefreshSuggestion(true);
+    }
+    localStorage.setItem(LAST_VISIT_KEY, String(Date.now()));
+  }, []);
+
   const filteredEvents = events.filter(e => {
     if (isEventDeleted(e)) return false;
     if (selectedLocation && (!e.location || !e.location.trim().includes(selectedLocation))) {
@@ -607,6 +621,31 @@ export default function App() {
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-[#1E293B] text-white text-xs font-bold px-5 py-3 rounded-full border-2 border-[#1E293B] shadow-pop z-50 animate-pop-in flex items-center gap-2 whitespace-nowrap">
           <span>⚠️</span>
           <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* 오랜만에 접속 시 강력 새로고침 추천 배너 */}
+      {showRefreshSuggestion && (
+        <div className="fixed top-4 inset-x-4 z-50 mx-auto max-w-[416px] animate-pop-in">
+          <div className="flex items-center gap-2 bg-[#FBBF24] text-[#1E293B] border-2 border-[#1E293B] rounded-2xl shadow-pop px-4 py-3">
+            <RefreshCw className="w-4 h-4 shrink-0" strokeWidth={2.5} />
+            <p className="flex-1 text-xs font-bold leading-snug">
+              오랜만에 접속하셨네요! 최신 정보를 위해 새로고침을 추천드려요.
+            </p>
+            <button
+              onClick={() => { setShowRefreshSuggestion(false); handleHardRefresh(); }}
+              className="px-3 py-1.5 bg-[#1E293B] text-white text-[11px] font-extrabold rounded-full shrink-0 cursor-pointer btn-candy"
+            >
+              새로고침
+            </button>
+            <button
+              onClick={() => setShowRefreshSuggestion(false)}
+              className="shrink-0 cursor-pointer"
+              title="닫기"
+            >
+              <X className="w-4 h-4" strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
       )}
     </div>
