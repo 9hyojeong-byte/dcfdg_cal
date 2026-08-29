@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, MapPin, AlignLeft, Users, UserPlus, Sparkles, Link, Waves } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, AlignLeft, Users, UserPlus, Sparkles, Link, Waves, MessageSquare } from 'lucide-react';
 import { ScheduleEvent } from '../types';
 import { formatTime } from '../lib/timeUtils';
 import { getAttendeesList, getAuthorName, getDisplayAttendeesList } from '../lib/authors';
@@ -10,14 +10,19 @@ interface EventDetailModalProps {
   onClose: () => void;
   onAddAttendee: (nickname: string, password?: string) => void;
   onRemoveAttendee: (nickname: string) => void;
+  onUpdateSharedMemo: (newMemo: string, baseVersion: number) => Promise<'saved' | 'conflict' | 'error'>;
 }
 
-export default function EventDetailModal({ event, onClose, onAddAttendee, onRemoveAttendee }: EventDetailModalProps) {
+export default function EventDetailModal({ event, onClose, onAddAttendee, onRemoveAttendee, onUpdateSharedMemo }: EventDetailModalProps) {
   const [newName, setNewName] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [savedMyName, setSavedMyName] = useState('');
   const [savedMyPassword, setSavedMyPassword] = useState('');
   const [showToast, setShowToast] = useState(false);
+  const [isEditingMemo, setIsEditingMemo] = useState(false);
+  const [memoDraft, setMemoDraft] = useState('');
+  const [memoBaseVersion, setMemoBaseVersion] = useState(0);
+  const [isSavingMemo, setIsSavingMemo] = useState(false);
 
   const handleCopyLink = async () => {
     const formattedDate = event.endDate
@@ -39,7 +44,7 @@ export default function EventDetailModal({ event, onClose, onAddAttendee, onRemo
 • 제목: ${event.title}
 • 일시: ${formattedDate} (${timeText}${deepTankText})
 • 장소: ${locationText}
-• 메모: ${event.description || '-'}
+• 벙주 메모: ${event.description || '-'}
 • 참석자: ${attendeesText}
 🔗 링크: ${url}`;
 
@@ -83,6 +88,24 @@ export default function EventDetailModal({ event, onClose, onAddAttendee, onRemo
     if (name === authorName) return; // 작성자는 참석자 목록에서 제외할 수 없음
     if (!window.confirm(`"${name}" 님을 참석자에서 제외하시겠습니까?`)) return;
     onRemoveAttendee(name);
+  };
+
+  const handleStartEditMemo = () => {
+    setMemoDraft(event.sharedMemo || '');
+    setMemoBaseVersion(event.sharedMemoVersion ?? 0);
+    setIsEditingMemo(true);
+  };
+
+  const handleSaveMemo = async () => {
+    setIsSavingMemo(true);
+    const result = await onUpdateSharedMemo(memoDraft, memoBaseVersion);
+    setIsSavingMemo(false);
+    setIsEditingMemo(false);
+    if (result === 'conflict') {
+      alert('다른 분이 방금 먼저 저장했어요. 최신 내용으로 다시 불러왔습니다. 필요하면 다시 수정해주세요.');
+    } else if (result === 'error') {
+      alert('메모 저장 중 오류가 발생했습니다.');
+    }
   };
 
   const formatKoreanDate = (dateStr: string) => {
@@ -180,13 +203,69 @@ export default function EventDetailModal({ event, onClose, onAddAttendee, onRemo
           {event.description && (
             <div className="space-y-1.5">
               <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
-                <AlignLeft className="w-3.5 h-3.5" />메모
+                <AlignLeft className="w-3.5 h-3.5" />벙주 메모
               </label>
               <div className="bg-white p-4 rounded-xl border-2 border-[#E2E8F0] text-sm font-medium text-[#475569] leading-relaxed break-all whitespace-pre-line">
                 {linkifyText(event.description)}
               </div>
             </div>
           )}
+
+          {/* Shared Memo - 비밀번호 없이 누구나 쓰는 메모 */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
+                <MessageSquare className="w-3.5 h-3.5" />공유 메모 (누구나 작성 가능)
+              </label>
+              {!isEditingMemo && (
+                <button
+                  type="button"
+                  onClick={handleStartEditMemo}
+                  className="text-[10px] font-bold text-[#8B5CF6] hover:underline cursor-pointer"
+                >
+                  {event.sharedMemo ? '수정' : '작성하기'}
+                </button>
+              )}
+            </div>
+
+            {isEditingMemo ? (
+              <div className="space-y-2">
+                <textarea
+                  value={memoDraft}
+                  onChange={(e) => setMemoDraft(e.target.value)}
+                  rows={4}
+                  placeholder="다 같이 볼 수 있는 메모를 자유롭게 남겨보세요"
+                  className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition resize-none placeholder:text-[#94A3B8]"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingMemo(false)}
+                    className="flex-1 py-2 bg-white border-2 border-[#1E293B] text-[#1E293B] font-bold text-xs rounded-full shadow-pop-sm btn-candy cursor-pointer"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveMemo}
+                    disabled={isSavingMemo}
+                    className="flex-1 py-2 bg-[#8B5CF6] border-2 border-[#1E293B] text-white font-bold text-xs rounded-full shadow-pop-sm btn-candy cursor-pointer disabled:opacity-60"
+                  >
+                    {isSavingMemo ? '저장 중...' : '저장'}
+                  </button>
+                </div>
+              </div>
+            ) : event.sharedMemo ? (
+              <div className="bg-white p-4 rounded-xl border-2 border-[#E2E8F0] text-sm font-medium text-[#475569] leading-relaxed break-all whitespace-pre-line">
+                {linkifyText(event.sharedMemo)}
+              </div>
+            ) : (
+              <div className="text-center py-5 bg-white rounded-xl border-2 border-dashed border-[#CBD5E1]">
+                <p className="text-xs font-bold text-[#94A3B8]">아직 작성된 공유 메모가 없어요.</p>
+              </div>
+            )}
+          </div>
 
           {/* Attendees */}
           <div className="space-y-2.5">

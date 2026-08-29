@@ -10,6 +10,8 @@ export interface ScheduleEvent {
   location?: string | null; // Location (딥스, 성남, 파라, 수원, 자유일정)
   attendees?: string | null; // Comma-separated or similar string of attendee names
   deepTankUsage?: string | null; // 딥탱크 이용시간: "전반부이", "후반부이" 등
+  sharedMemo?: string | null; // 비밀번호 없이 누구나 쓸 수 있는 공유 메모
+  sharedMemoVersion?: number; // 공유 메모 낙관적 동시성 제어용 버전 번호
 }
 
 export interface GoogleSheetConfig {

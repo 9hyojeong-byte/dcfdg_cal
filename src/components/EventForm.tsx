@@ -475,7 +475,7 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
           {/* 6. Description */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest flex items-center gap-1">
-              <AlignLeft className="w-3.5 h-3.5" />메모
+              <AlignLeft className="w-3.5 h-3.5" />벙주 메모
             </label>
             <textarea
               placeholder="추가 메모를 입력하세요"

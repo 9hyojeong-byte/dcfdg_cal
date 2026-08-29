@@ -20,6 +20,8 @@ interface ScheduleRow {
   location: string;
   deep_tank_usage: string | null;
   created_at: string;
+  shared_memo: string | null;
+  shared_memo_version: number;
   schedule_attendees?: { nickname: string }[] | null;
 }
 
@@ -37,6 +39,8 @@ function rowToEvent(row: ScheduleRow): ScheduleEvent {
     location: row.location,
     attendees: nicknames.length > 0 ? nicknames.join(', ') : null,
     deepTankUsage: row.deep_tank_usage,
+    sharedMemo: row.shared_memo,
+    sharedMemoVersion: row.shared_memo_version,
   };
 }
 
@@ -186,6 +190,53 @@ export async function removeAttendee(scheduleId: string, nickname: string): Prom
   if (error) {
     throw new Error(`참석자 삭제에 실패했습니다: ${error.message}`);
   }
+}
+
+export type UpdateSharedMemoResult =
+  | { ok: true; newVersion: number }
+  | { ok: false; latestMemo: string | null; latestVersion: number };
+
+/**
+ * 비밀번호 없이 누구나 쓸 수 있는 "공유 메모"를 저장한다.
+ *
+ * 낙관적 동시성 제어(optimistic concurrency control): baseVersion은
+ * 이 사용자가 편집을 시작할 때 보고 있던 버전 번호다. 그 사이 다른
+ * 사람이 먼저 저장해서 DB의 버전이 이미 올라가 있으면, WHERE 조건에
+ * 걸려 이 UPDATE는 0건 적용된다 — 그걸 감지해서 "충돌"로 처리하고,
+ * 최신 메모/버전을 다시 가져와 돌려준다. 절대 그냥 덮어쓰지 않는다.
+ */
+export async function updateSharedMemo(
+  scheduleId: string,
+  newMemo: string,
+  baseVersion: number
+): Promise<UpdateSharedMemoResult> {
+  const { data, error } = await supabase
+    .from(SCHEDULES_TABLE)
+    .update({ shared_memo: newMemo, shared_memo_version: baseVersion + 1 })
+    .eq('id', scheduleId)
+    .eq('shared_memo_version', baseVersion)
+    .select('shared_memo_version')
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`공유 메모 저장에 실패했습니다: ${error.message}`);
+  }
+
+  if (!data) {
+    // 조건에 걸린 행이 없다 = 그 사이 다른 사람이 먼저 저장해서 버전이 이미 바뀜
+    const { data: latest, error: fetchError } = await supabase
+      .from(SCHEDULES_TABLE)
+      .select('shared_memo, shared_memo_version')
+      .eq('id', scheduleId)
+      .single();
+    if (fetchError) {
+      throw new Error(`최신 메모를 가져오지 못했습니다: ${fetchError.message}`);
+    }
+    const latestRow = latest as { shared_memo: string | null; shared_memo_version: number };
+    return { ok: false, latestMemo: latestRow.shared_memo, latestVersion: latestRow.shared_memo_version };
+  }
+
+  return { ok: true, newVersion: (data as { shared_memo_version: number }).shared_memo_version };
 }
 
 /** 작성자/리더 이름 변경: 그 행 하나만 이름을 바꾼다. 나머지 참석자는 그대로 둔다. */

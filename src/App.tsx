@@ -14,6 +14,7 @@ import {
   renameAttendee,
   getSchedulePasswordHash,
   getAttendeePasswordHash,
+  updateSharedMemo,
 } from './lib/supabaseApi';
 import { getAuthorName } from './lib/authors';
 import { hashPassword } from './lib/passwordHash';
@@ -346,6 +347,40 @@ export default function App() {
     }
   };
 
+  // 비밀번호 없이 누구나 쓰는 공유 메모 저장. baseVersion은 모달이 편집을
+  // 시작할 때 보고 있던 버전 — 그 사이 다른 사람이 먼저 저장했으면
+  // 'conflict'를 돌려주고 로컬 상태를 최신 내용으로 갱신한다(덮어쓰지 않음).
+  const handleUpdateSharedMemo = async (
+    eventId: string,
+    newMemo: string,
+    baseVersion: number
+  ): Promise<'saved' | 'conflict' | 'error'> => {
+    const target = events.find(e => String(e.id) === String(eventId));
+    if (!target) return 'error';
+
+    try {
+      const result = await updateSharedMemo(eventId, newMemo, baseVersion);
+
+      if (result.ok) {
+        const updatedEvent = { ...target, sharedMemo: newMemo, sharedMemoVersion: result.newVersion };
+        setEvents(events.map(e => String(e.id) === String(eventId) ? updatedEvent : e));
+        if (selectedEventForDetail && String(selectedEventForDetail.id) === String(eventId)) setSelectedEventForDetail(updatedEvent);
+        return 'saved';
+      } else {
+        // 충돌: 그 사이 다른 사람이 먼저 저장함 — 최신 내용으로 로컬 상태를 갱신
+        // (TS가 이 분기에서 판별 유니언을 안 좁혀줘서 단언으로 우회)
+        const conflict = result as { ok: false; latestMemo: string | null; latestVersion: number };
+        const updatedEvent = { ...target, sharedMemo: conflict.latestMemo, sharedMemoVersion: conflict.latestVersion };
+        setEvents(events.map(e => String(e.id) === String(eventId) ? updatedEvent : e));
+        if (selectedEventForDetail && String(selectedEventForDetail.id) === String(eventId)) setSelectedEventForDetail(updatedEvent);
+        return 'conflict';
+      }
+    } catch (err) {
+      console.error('Failed to update shared memo:', err);
+      return 'error';
+    }
+  };
+
   const handleImportParsedEvents = async (imported: Omit<ScheduleEvent, 'id' | 'createdAt'>[]) => {
     const newEvents: ScheduleEvent[] = imported.map((item) => ({
       id: crypto.randomUUID(),
@@ -631,6 +666,7 @@ export default function App() {
             onClose={handleCloseEventDetail}
             onAddAttendee={(nickname, password) => handleAddAttendeeToEvent(selectedEventForDetail.id, nickname, password)}
             onRemoveAttendee={(nickname) => handleRemoveAttendeeFromEvent(selectedEventForDetail.id, nickname)}
+            onUpdateSharedMemo={(newMemo, baseVersion) => handleUpdateSharedMemo(selectedEventForDetail.id, newMemo, baseVersion)}
           />
         )}
 

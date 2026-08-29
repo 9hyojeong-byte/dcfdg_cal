@@ -125,7 +125,7 @@ function EventCard({
 • 제목: ${ev.title}
 • 일시: ${formattedDate} (${timeText}${deepTankText})
 • 장소: ${locationText}
-• 메모: ${ev.description || '-'}
+• 벙주 메모: ${ev.description || '-'}
 • 참석자: ${attendeesText}
 🔗 링크: ${url}`;
 
