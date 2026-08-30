@@ -254,3 +254,26 @@ export async function renameAttendee(
     throw new Error(`작성자 이름 변경에 실패했습니다: ${error.message}`);
   }
 }
+
+/**
+ * "버그로 삭제된" 일정을 복구한다 (숨김 기능: LIVE 배지 5회 클릭).
+ *
+ * 현재 앱 코드에는 deleted_at을 세팅하는 곳이 단 한 군데도 없다 — 진짜
+ * 삭제는 참석자 목록에 "삭제됨" 태그를 추가하는 방식만 쓴다. 그래서
+ * dcfdg 소속 일정에 deleted_at이 채워져 있다는 것 자체가, 예전 버전
+ * 클라이언트(전체 배열 동기화 시 스냅샷에 없는 일정을 통째로
+ * soft-delete하던 옛날 코드)가 아직도 어딘가에서 돌고 있다는 증거다.
+ * 그 일정들만 정확히 골라서 deleted_at을 다시 null로 되돌린다.
+ */
+export async function restoreBuggyDeletedSchedules(): Promise<number> {
+  const { data, error } = await supabase
+    .from(SCHEDULES_TABLE)
+    .update({ deleted_at: null })
+    .eq('company', COMPANY_CODE)
+    .not('deleted_at', 'is', null)
+    .select('id');
+  if (error) {
+    throw new Error(`버그로 삭제된 일정 복구에 실패했습니다: ${error.message}`);
+  }
+  return (data ?? []).length;
+}

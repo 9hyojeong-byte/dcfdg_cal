@@ -15,6 +15,7 @@ import {
   getSchedulePasswordHash,
   getAttendeePasswordHash,
   updateSharedMemo,
+  restoreBuggyDeletedSchedules,
 } from './lib/supabaseApi';
 import { getAuthorName } from './lib/authors';
 import { hashPassword } from './lib/passwordHash';
@@ -56,6 +57,7 @@ export default function App() {
   const [currentSyncEmoji, setCurrentSyncEmoji] = useState('🌊');
 
   const [todayClickCount, setTodayClickCount] = useState(0);
+  const [liveClickCount, setLiveClickCount] = useState(0);
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
   const installPromptRef = useRef<any>(null);
   const [canInstall, setCanInstall] = useState(false);
@@ -381,6 +383,39 @@ export default function App() {
     }
   };
 
+  // 히든 기능: LIVE 배지를 5번 연속 클릭하면, 예전 버전 클라이언트가
+  // 일으키는 "버그로 삭제된 일정"(deleted_at이 채워진 dcfdg 일정 —
+  // 지금 코드에는 deleted_at을 세팅하는 곳이 없으므로 이게 곧 버그의
+  // 증거)을 복구할지 물어본다.
+  const handleRestoreBuggyDeletedSchedules = async () => {
+    if (!window.confirm('버그로 삭제된 일정들을 복구할까요?')) return;
+    try {
+      const restoredCount = await restoreBuggyDeletedSchedules();
+      if (restoredCount > 0) {
+        await loadDataFromGAS();
+      }
+      alert(
+        restoredCount > 0
+          ? `${restoredCount}개의 일정을 복구했습니다.`
+          : '복구할 일정이 없습니다.'
+      );
+    } catch (err) {
+      console.error('Failed to restore buggy-deleted schedules:', err);
+      alert('복구 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleLiveButtonClick = () => {
+    setLiveClickCount(prev => {
+      const next = prev + 1;
+      if (next >= 5) {
+        handleRestoreBuggyDeletedSchedules();
+        return 0;
+      }
+      return next;
+    });
+  };
+
   const handleImportParsedEvents = async (imported: Omit<ScheduleEvent, 'id' | 'createdAt'>[]) => {
     const newEvents: ScheduleEvent[] = imported.map((item) => ({
       id: crypto.randomUUID(),
@@ -553,7 +588,9 @@ export default function App() {
                   <span>다운로드</span>
                 </button>
               ) : (
-                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white/40 text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm
+                <button
+                  onClick={handleLiveButtonClick}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white/40 text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm cursor-pointer
                   ${syncStatus === 'error'
                     ? 'bg-red-500/80 text-white'
                     : syncStatus === 'syncing'
@@ -567,7 +604,7 @@ export default function App() {
                   <span>
                     {syncStatus === 'syncing' ? 'Sync...' : syncStatus === 'error' ? 'Error' : 'Live'}
                   </span>
-                </div>
+                </button>
               )}
             </div>
           </div>
