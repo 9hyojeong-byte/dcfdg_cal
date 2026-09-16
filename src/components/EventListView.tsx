@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit2, Trash2, Plus, Settings, X, CalendarDays, Link, Waves } from 'lucide-react';
+import { Edit2, Trash2, Plus, Settings, X, CalendarDays, Link } from 'lucide-react';
 import { ScheduleEvent } from '../types';
 import { formatTime, isPastDate } from '../lib/timeUtils';
 import { getAttendeesList, getAuthorName, getDisplayAttendeesList } from '../lib/authors';
@@ -338,6 +338,8 @@ export default function EventListView({
         </button>
       </div>
 
+      <BuoyWatchBanner />
+
       {/* ── 리스트 영역 ── */}
       {displayEvents.length === 0 ? (
         <EmptyState isSearch={!!searchQuery} />
@@ -355,8 +357,6 @@ export default function EventListView({
           ))}
         </div>
       )}
-
-      <BuoyWatchBanner />
 
       {/* ── 일정 관리 오버레이 모달 ── */}
       {menuEvent && (
@@ -421,8 +421,8 @@ function BuoyWatchBanner() {
       rel="noopener noreferrer"
       className="flex items-center gap-3 bg-gradient-to-r from-sky-50 to-violet-50 rounded-2xl border-2 border-[#1E293B] shadow-pop-sky p-3.5 btn-candy cursor-pointer"
     >
-      <div className="w-9 h-9 rounded-full bg-white border-2 border-[#1E293B] flex items-center justify-center shrink-0">
-        <Waves className="w-4 h-4 text-[#0EA5E9]" strokeWidth={2.5} />
+      <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-[#1E293B] shrink-0 bg-[#07111f]">
+        <img src="/icons/buoywatch-icon.svg" alt="부이왓치" className="w-full h-full object-cover" />
       </div>
       <p className="text-xs font-bold text-[#1E293B] leading-snug">
         부이왓치 : 딥스테이션과 파라다이브의 부이 및 좌석 현황을 쉽게 확인하세요.

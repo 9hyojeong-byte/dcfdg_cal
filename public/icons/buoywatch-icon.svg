@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- BuoyWatch(부이왓치) brand symbol: a single banded dive buoy floating on the
+       waterline, with its line/eyelet above and its anchor line below. No text - see docs
+       on why (small favicons/launcher icons can't render legible letters). Full-bleed
+       square with all content inside the standard 80%-diameter maskable safe zone (center
+       512,512, safe radius 410) so this one source works for favicon, apple-touch-icon,
+       PWA "any" and "maskable" purposes without a separate crop. -->
+  <defs>
+    <clipPath id="buoyClip">
+      <circle cx="512" cy="460" r="150"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1024" height="1024" fill="#07111f"/>
+
+  <!-- anchor line, faint, beneath the waterline -->
+  <line x1="512" y1="628" x2="512" y2="748" stroke="#ff7a45" stroke-width="10" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- eyelet + short neck the dive line clips onto -->
+  <circle cx="512" cy="250" r="30" fill="none" stroke="#ff7a45" stroke-width="14"/>
+  <line x1="512" y1="280" x2="512" y2="312" stroke="#ff7a45" stroke-width="14" stroke-linecap="round"/>
+
+  <!-- buoy sphere with a contrasting equator band -->
+  <circle cx="512" cy="460" r="150" fill="#ff7a45"/>
+  <rect x="330" y="430" width="364" height="60" fill="#07111f" clip-path="url(#buoyClip)"/>
+
+  <!-- waterline the buoy floats on -->
+  <ellipse cx="512" cy="610" rx="252" ry="16" fill="#16324a"/>
+  <path d="M234,610 q40,-20 80,0 t80,0 t80,0 t80,0" fill="none" stroke="#16324a" stroke-width="10" stroke-linecap="round" opacity="0.6"/>
+  <path d="M234,646 q40,-16 80,0 t80,0 t80,0 t80,0" fill="none" stroke="#16324a" stroke-width="8" stroke-linecap="round" opacity="0.35"/>
+</svg>
