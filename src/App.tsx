@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Sparkles, Plus, CheckCircle2, ShieldAlert, X, Zap, Download, Search, RefreshCw } from 'lucide-react';
+import { Plus, CheckCircle2, ShieldAlert, X, Zap, Download, Search, RefreshCw } from 'lucide-react';
 import { ScheduleEvent } from './types';
 import CalendarView from './components/CalendarView';
 import EventListView from './components/EventListView';
 import EventForm from './components/EventForm';
-import ImageUploader from './components/ImageUploader';
 import EventDetailModal from './components/EventDetailModal';
 import {
   fetchSchedules,
@@ -57,8 +56,6 @@ export default function App() {
   const [currentSyncEmoji, setCurrentSyncEmoji] = useState('🌊');
 
   const [todayClickCount, setTodayClickCount] = useState(0);
-  const [liveClickCount, setLiveClickCount] = useState(0);
-  const [isUploaderOpen, setIsUploaderOpen] = useState(false);
   const installPromptRef = useRef<any>(null);
   const [canInstall, setCanInstall] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
@@ -383,10 +380,10 @@ export default function App() {
     }
   };
 
-  // 히든 기능: LIVE 배지를 5번 연속 클릭하면, 예전 버전 클라이언트가
-  // 일으키는 "버그로 삭제된 일정"(deleted_at이 채워진 dcfdg 일정 —
-  // 지금 코드에는 deleted_at을 세팅하는 곳이 없으므로 이게 곧 버그의
-  // 증거)을 복구할지 물어본다.
+  // 히든 기능: 캘린더의 "오늘" 버튼을 5번 연속 클릭하면, 예전 버전
+  // 클라이언트가 일으키는 "버그로 삭제된 일정"(deleted_at이 채워진
+  // dcfdg 일정 — 지금 코드에는 deleted_at을 세팅하는 곳이 없으므로
+  // 이게 곧 버그의 증거)을 복구할지 물어본다.
   const handleRestoreBuggyDeletedSchedules = async () => {
     if (!window.confirm('버그로 삭제된 일정들을 복구할까요?')) return;
     try {
@@ -403,45 +400,6 @@ export default function App() {
       console.error('Failed to restore buggy-deleted schedules:', err);
       alert('복구 중 오류가 발생했습니다.');
     }
-  };
-
-  const handleLiveButtonClick = () => {
-    setLiveClickCount(prev => {
-      const next = prev + 1;
-      if (next >= 5) {
-        handleRestoreBuggyDeletedSchedules();
-        return 0;
-      }
-      return next;
-    });
-  };
-
-  const handleImportParsedEvents = async (imported: Omit<ScheduleEvent, 'id' | 'createdAt'>[]) => {
-    const newEvents: ScheduleEvent[] = imported.map((item) => ({
-      id: crypto.randomUUID(),
-      title: item.title,
-      date: item.date,
-      startTime: item.startTime,
-      endTime: item.endTime,
-      description: item.description,
-      createdAt: new Date().toISOString()
-    }));
-    setEvents([...events, ...newEvents]);
-    if (newEvents.length > 0) {
-      setSelectedDate(newEvents[0].date);
-      const targetDate = new Date(newEvents[0].date);
-      if (!isNaN(targetDate.getTime())) setCurrentCalendarDate(targetDate);
-    }
-    setSyncStatus('syncing');
-    try {
-      await Promise.all(newEvents.map(ev => saveSingleEvent(ev, { isNew: true })));
-      setSyncStatus('success');
-    } catch (err) {
-      console.error('Failed to save imported events:', err);
-      setSyncStatus('error');
-    }
-    setIsUploaderOpen(false);
-    alert(`AI가 성공적으로 ${newEvents.length}개의 일정을 인식하여 등록했습니다!`);
   };
 
   const handleNavigateMonth = (offset: number) => {
@@ -588,9 +546,7 @@ export default function App() {
                   <span>다운로드</span>
                 </button>
               ) : (
-                <button
-                  onClick={handleLiveButtonClick}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white/40 text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm cursor-pointer
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-white/40 text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm
                   ${syncStatus === 'error'
                     ? 'bg-red-500/80 text-white'
                     : syncStatus === 'syncing'
@@ -604,7 +560,7 @@ export default function App() {
                   <span>
                     {syncStatus === 'syncing' ? 'Sync...' : syncStatus === 'error' ? 'Error' : 'Live'}
                   </span>
-                </button>
+                </div>
               )}
             </div>
           </div>
@@ -654,7 +610,7 @@ export default function App() {
             onTodayClick={() => {
               setTodayClickCount(prev => {
                 const next = prev + 1;
-                if (next >= 3) { setIsUploaderOpen(true); return 0; }
+                if (next >= 5) { handleRestoreBuggyDeletedSchedules(); return 0; }
                 return next;
               });
             }}
@@ -705,38 +661,6 @@ export default function App() {
             onRemoveAttendee={(nickname) => handleRemoveAttendeeFromEvent(selectedEventForDetail.id, nickname)}
             onUpdateSharedMemo={(newMemo, baseVersion) => handleUpdateSharedMemo(selectedEventForDetail.id, newMemo, baseVersion)}
           />
-        )}
-
-        {/* ── AI Image Uploader Modal (Easter Egg) ── */}
-        {isUploaderOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1E293B]/70 backdrop-blur-sm">
-            <div className="bg-[#FFFDF5] rounded-3xl w-full max-w-sm overflow-hidden border-2 border-[#1E293B] shadow-pop-lg flex flex-col max-h-[90vh] animate-pop-in">
-              <div className="px-5 pt-5 pb-3 flex items-center justify-between border-b-2 border-[#1E293B] bg-[#8B5CF6]">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-white border-2 border-[#1E293B] flex items-center justify-center">
-                    <Sparkles className="w-3.5 h-3.5 text-[#8B5CF6]" strokeWidth={2.5} />
-                  </div>
-                  <h3 className="font-display text-lg font-extrabold text-white tracking-tight">AI 일정 스캔</h3>
-                </div>
-                <button
-                  onClick={() => setIsUploaderOpen(false)}
-                  className="w-7 h-7 rounded-full bg-white/20 hover:bg-white/40 border border-white/40 flex items-center justify-center text-white transition cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-5">
-                <p className="text-xs text-[#64748B] mb-4 leading-relaxed font-medium">
-                  스크린샷을 업로드하면 AI가 일정을 자동으로 파싱합니다.
-                </p>
-                <ImageUploader
-                  onImportEvents={handleImportParsedEvents}
-                  isLoading={isLoading}
-                  setIsLoading={setIsLoading}
-                />
-              </div>
-            </div>
-          </div>
         )}
 
         {/* ── Sync Loading Overlay ── */}
