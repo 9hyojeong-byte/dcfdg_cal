@@ -9,6 +9,11 @@ const ATTENDEES_TABLE = 'schedule_attendees';
 // 항상 이 코드로만 읽고 쓴다.
 const COMPANY_CODE = 'dcfdg';
 
+// 희선캘린더(deephee_cal)에서 "프다갤에도 올리기"로 등록한 일정은 이 표식 참석자가 붙는다.
+// 그런 희선 일정도 이 캘린더에 함께 보여준다. 희선 쪽 appConfig.ts의 값과 같아야 한다.
+const CROSS_POST_COMPANY = 'deephee';
+const CROSS_POST_ATTENDEE = '깍뚜기벙';
+
 interface ScheduleRow {
   id: string;
   title: string;
@@ -18,6 +23,7 @@ interface ScheduleRow {
   start_time: string | null;
   end_time: string | null;
   location: string;
+  company: string;
   deep_tank_usage: string | null;
   created_at: string;
   shared_memo: string | null;
@@ -37,6 +43,7 @@ function rowToEvent(row: ScheduleRow): ScheduleEvent {
     description: row.description,
     createdAt: row.created_at,
     location: row.location,
+    company: row.company,
     attendees: nicknames.length > 0 ? nicknames.join(', ') : null,
     deepTankUsage: row.deep_tank_usage,
     sharedMemo: row.shared_memo,
@@ -54,32 +61,57 @@ function eventToRow(event: ScheduleEvent) {
     start_time: event.startTime,
     end_time: event.endTime,
     location: event.location || '자유일정',
-    company: COMPANY_CODE,
+    // 희선에서 넘어온 일정을 여기서 수정해도 원래 company를 유지해야 희선 캘린더에서 사라지지 않는다.
+    company: event.company || COMPANY_CODE,
     deep_tank_usage: event.deepTankUsage ?? null,
     created_at: event.createdAt || new Date().toISOString(),
   };
 }
 
-/**
- * Fetches all active schedule events for this company (dcfdg) from Supabase,
- * joined with their attendee nicknames.
- */
-export async function fetchSchedules(): Promise<ScheduleEvent[]> {
-  const { data, error } = await supabase
+function selectActiveSchedules() {
+  return supabase
     .from(SCHEDULES_TABLE)
     .select(`*, ${ATTENDEES_TABLE}(nickname)`)
-    .eq('company', COMPANY_CODE)
     .is('deleted_at', null)
     .order('start_date', { ascending: true })
     // schedule_attendees는 등록 순서(=작성자 판별 기준)대로 명시적으로 정렬해서 가져와야 한다.
     // ORDER BY 없이 조회하면 첫 번째 참석자(=작성자)가 뒤바뀔 수 있다.
     .order('created_at', { referencedTable: ATTENDEES_TABLE, ascending: true });
+}
 
+/**
+ * Fetches all active schedule events for this company (dcfdg) from Supabase,
+ * joined with their attendee nicknames, plus 희선캘린더 schedules cross-posted
+ * with the CROSS_POST_ATTENDEE marker.
+ */
+export async function fetchSchedules(): Promise<ScheduleEvent[]> {
+  const { data, error } = await selectActiveSchedules().eq('company', COMPANY_CODE);
   if (error) {
     throw new Error(`Supabase에서 일정을 가져오지 못했습니다: ${error.message}`);
   }
+  const rows = (data as unknown as ScheduleRow[] | null) ?? [];
 
-  return (data as unknown as ScheduleRow[] | null ?? []).map(rowToEvent);
+  // 표식 참석자가 붙은 일정 id를 먼저 찾고, 그중 희선 일정만 가져온다.
+  const { data: markerRows, error: markerError } = await supabase
+    .from(ATTENDEES_TABLE)
+    .select('schedule_id')
+    .eq('nickname', CROSS_POST_ATTENDEE);
+  if (markerError) {
+    throw new Error(`Supabase에서 프다갤 공유 일정을 가져오지 못했습니다: ${markerError.message}`);
+  }
+  const crossPostIds = [...new Set(((markerRows as { schedule_id: string }[] | null) ?? []).map((r) => r.schedule_id))];
+  if (crossPostIds.length > 0) {
+    const { data: crossData, error: crossError } = await selectActiveSchedules()
+      .eq('company', CROSS_POST_COMPANY)
+      .in('id', crossPostIds);
+    if (crossError) {
+      throw new Error(`Supabase에서 프다갤 공유 일정을 가져오지 못했습니다: ${crossError.message}`);
+    }
+    rows.push(...((crossData as unknown as ScheduleRow[] | null) ?? []));
+    rows.sort((a, b) => a.start_date.localeCompare(b.start_date));
+  }
+
+  return rows.map(rowToEvent);
 }
 
 /**
