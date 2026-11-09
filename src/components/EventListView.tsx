@@ -245,12 +245,6 @@ export default function EventListView({
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
-  const handleDeleteClick = (id: string, title: string) => {
-    if (window.confirm(`"${title}" 일정을 정말로 삭제하시겠습니까?`)) {
-      onDeleteEvent(id);
-    }
-  };
-
   // 1. 데이터 준비 (필터링 및 정렬)
   let displayEvents: ScheduleEvent[] = [];
   let isFiltered = false;
@@ -391,7 +385,7 @@ export default function EventListView({
                 onClick={() => {
                   const ev = menuEvent;
                   setMenuEvent(null);
-                  handleDeleteClick(ev.id, ev.title);
+                  onDeleteEvent(ev.id);
                 }}
                 className="w-full py-2.5 bg-[#F472B6] text-[#1E293B] font-extrabold text-xs rounded-full border-2 border-[#1E293B] shadow-pop-sm hover:bg-[#F05DA7] transition btn-candy flex items-center justify-center gap-1.5 cursor-pointer"
               >

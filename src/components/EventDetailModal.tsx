@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, MapPin, AlignLeft, Users, UserPlus, Sparkles, Link, Waves, MessageSquare } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, AlignLeft, Users, UserPlus, Sparkles, Link, Waves, MessageSquare, Settings, Edit2, Trash2 } from 'lucide-react';
 import { ScheduleEvent } from '../types';
 import { formatTime } from '../lib/timeUtils';
 import { getAttendeesList, getAuthorName, getDisplayAttendeesList } from '../lib/authors';
@@ -8,12 +8,14 @@ import { linkifyText } from '../lib/linkify';
 interface EventDetailModalProps {
   event: ScheduleEvent;
   onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
   onAddAttendee: (nickname: string, password?: string) => void;
   onRemoveAttendee: (nickname: string) => void;
   onUpdateSharedMemo: (newMemo: string, baseVersion: number) => Promise<'saved' | 'conflict' | 'error'>;
 }
 
-export default function EventDetailModal({ event, onClose, onAddAttendee, onRemoveAttendee, onUpdateSharedMemo }: EventDetailModalProps) {
+export default function EventDetailModal({ event, onClose, onEdit, onDelete, onAddAttendee, onRemoveAttendee, onUpdateSharedMemo }: EventDetailModalProps) {
   const [newName, setNewName] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [savedMyName, setSavedMyName] = useState('');
@@ -23,6 +25,7 @@ export default function EventDetailModal({ event, onClose, onAddAttendee, onRemo
   const [memoDraft, setMemoDraft] = useState('');
   const [memoBaseVersion, setMemoBaseVersion] = useState(0);
   const [isSavingMemo, setIsSavingMemo] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleCopyLink = async () => {
     const formattedDate = event.endDate
@@ -90,6 +93,16 @@ export default function EventDetailModal({ event, onClose, onAddAttendee, onRemo
     onRemoveAttendee(name);
   };
 
+  const handleMenuEdit = () => {
+    setIsMenuOpen(false);
+    onEdit();
+  };
+
+  const handleMenuDelete = () => {
+    setIsMenuOpen(false);
+    onDelete();
+  };
+
   const handleStartEditMemo = () => {
     setMemoDraft(event.sharedMemo || '');
     setMemoBaseVersion(event.sharedMemoVersion ?? 0);
@@ -145,6 +158,14 @@ export default function EventDetailModal({ event, onClose, onAddAttendee, onRemo
             <span className="text-xs font-bold text-[#94A3B8]">일정 상세</span>
           </div>
           <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setIsMenuOpen(true)}
+              type="button"
+              className="w-8 h-8 rounded-full border-2 border-[#1E293B] bg-[#F1F5F9] hover:bg-[#E2E8F0] flex items-center justify-center transition cursor-pointer"
+              title="일정 관리"
+            >
+              <Settings className="w-4 h-4 text-[#1E293B]" strokeWidth={2.5} />
+            </button>
             <button
               onClick={handleCopyLink}
               type="button"
@@ -371,6 +392,50 @@ export default function EventDetailModal({ event, onClose, onAddAttendee, onRemo
             확인 및 닫기
           </button>
         </div>
+
+        {/* 일정 관리 메뉴 (수정/삭제) */}
+        {isMenuOpen && (
+          <div
+            onClick={() => setIsMenuOpen(false)}
+            className="absolute inset-0 bg-[#1E293B]/70 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-pop-in"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#FFFDF5] rounded-3xl w-full max-w-[280px] border-2 border-[#1E293B] shadow-pop-lg flex flex-col p-5 space-y-4"
+            >
+              <div className="text-center space-y-1">
+                <span className="text-[10px] font-extrabold text-[#8B5CF6] bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full inline-block">
+                  일정 관리
+                </span>
+                <h4 className="font-display text-sm font-extrabold text-[#1E293B] truncate max-w-full pt-1.5 px-1">
+                  {event.title}
+                </h4>
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleMenuEdit}
+                  className="w-full py-2.5 bg-[#8B5CF6] text-white font-extrabold text-xs rounded-full border-2 border-[#1E293B] shadow-pop-sm hover:bg-[#7C3AED] transition btn-candy flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />
+                  <span>수정하기</span>
+                </button>
+                <button
+                  onClick={handleMenuDelete}
+                  className="w-full py-2.5 bg-[#F472B6] text-[#1E293B] font-extrabold text-xs rounded-full border-2 border-[#1E293B] shadow-pop-sm hover:bg-[#F05DA7] transition btn-candy flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-[#1E293B]" strokeWidth={2.5} />
+                  <span>삭제하기</span>
+                </button>
+                <button
+                  onClick={() => setIsMenuOpen(false)}
+                  className="w-full py-2 bg-white text-[#1E293B] font-bold text-xs rounded-full border-2 border-[#1E293B] shadow-pop-sm hover:bg-[#F1F5F9] transition btn-candy cursor-pointer"
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Copy Link Toast Notification */}
         {showToast && (

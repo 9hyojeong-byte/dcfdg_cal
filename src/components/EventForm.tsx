@@ -248,10 +248,12 @@ export default function EventForm({ selectedDate, editingEvent, onSave, onCancel
               </label>
               <input
                 type="password"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 maxLength={20}
-                placeholder="설정 안 하면 누구나 수정/삭제 가능"
+                placeholder="설정 안 하면 누구나 수정/삭제 가능 (숫자)"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => setPassword(e.target.value.replace(/[^0-9]/g, ''))}
                 className="w-full px-4 py-3 border-2 border-[#CBD5E1] bg-white rounded-xl text-sm font-semibold text-[#1E293B] input-geo transition placeholder:text-[#94A3B8]"
               />
             </div>

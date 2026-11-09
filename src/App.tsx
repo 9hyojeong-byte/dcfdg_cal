@@ -5,6 +5,7 @@ import CalendarView from './components/CalendarView';
 import EventListView from './components/EventListView';
 import EventForm from './components/EventForm';
 import EventDetailModal from './components/EventDetailModal';
+import PasswordPromptModal from './components/PasswordPromptModal';
 import {
   fetchSchedules,
   saveSingleEvent,
@@ -62,6 +63,20 @@ export default function App() {
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const initialDeepLinkChecked = useRef(false);
+
+  const [passwordPrompt, setPasswordPrompt] = useState<{
+    message: string;
+    resolve: (value: string | null) => void;
+  } | null>(null);
+
+  // window.prompt()는 네이티브 팝업이라 inputMode 등을 지정할 수 없어
+  // 숫자 키패드를 띄울 수 없다 — 그래서 자체 모달로 대체해 같은
+  // "입력값 또는 null(취소)"을 돌려준다.
+  const requestPasswordInput = (message: string): Promise<string | null> => {
+    return new Promise((resolve) => {
+      setPasswordPrompt({ message, resolve });
+    });
+  };
 
   useEffect(() => {
     if (toastMessage) {
@@ -205,7 +220,7 @@ export default function App() {
     }
     if (!storedHash) return true;
 
-    const input = window.prompt('이 일정의 비밀번호를 입력해주세요.');
+    const input = await requestPasswordInput('이 일정의 비밀번호를 입력해주세요.');
     if (input === null) return false;
     const inputHash = await hashPassword(input.trim());
     if (inputHash !== storedHash) {
@@ -290,6 +305,7 @@ export default function App() {
     if (!target) return;
     const passed = await verifySchedulePassword(id);
     if (!passed) return;
+    if (!window.confirm(`"${target.title}" 일정을 정말로 삭제하시겠습니까?`)) return;
     const attendeesList = target.attendees ? target.attendees.split(',').map(n => n.trim()) : [];
     if (attendeesList.includes('삭제됨')) return;
     const updatedEvent = { ...target, attendees: [...attendeesList, '삭제됨'].join(', ') };
@@ -657,9 +673,28 @@ export default function App() {
           <EventDetailModal
             event={selectedEventForDetail}
             onClose={handleCloseEventDetail}
+            onEdit={() => {
+              const ev = selectedEventForDetail;
+              handleCloseEventDetail();
+              handleEditEventClick(ev);
+            }}
+            onDelete={() => {
+              const id = selectedEventForDetail.id;
+              handleCloseEventDetail();
+              handleDeleteEvent(id);
+            }}
             onAddAttendee={(nickname, password) => handleAddAttendeeToEvent(selectedEventForDetail.id, nickname, password)}
             onRemoveAttendee={(nickname) => handleRemoveAttendeeFromEvent(selectedEventForDetail.id, nickname)}
             onUpdateSharedMemo={(newMemo, baseVersion) => handleUpdateSharedMemo(selectedEventForDetail.id, newMemo, baseVersion)}
+          />
+        )}
+
+        {/* ── 일정 비밀번호 확인 모달 (숫자 키패드) ── */}
+        {passwordPrompt && (
+          <PasswordPromptModal
+            message={passwordPrompt.message}
+            onSubmit={(value) => { passwordPrompt.resolve(value); setPasswordPrompt(null); }}
+            onCancel={() => { passwordPrompt.resolve(null); setPasswordPrompt(null); }}
           />
         )}
 
